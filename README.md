@@ -45,7 +45,7 @@ Follow these steps to get Lumenante and your Roblox game connected.
 
 The final structure should look like this:
 ```
-lumenante/
+lumenante_V#.#/
 ├── lumenante.exe
 └── _internal/
     ├── plugins/

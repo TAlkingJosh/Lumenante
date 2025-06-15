@@ -27,6 +27,10 @@ Created by **Talking_Josh** under the **SpectraForge** brand.
 
 ## Setup Guide
 
+
+https://github.com/user-attachments/assets/a426ed74-769d-47e0-868d-e735eb9fe079
+
+
 Follow these steps to get Lumenante and your Roblox game connected.
 
 ### 1. Application Setup

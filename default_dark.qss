@@ -1,0 +1,73 @@
+/* themes/default_dark.qss */
+/* This is the original QSS from GrandMA3Console.apply_global_stylesheet */
+QMainWindow { background-color: #2E2E2E; }
+QFrame#AppHeaderFrame { background-color: #1E1E1E; border-bottom: 1px solid #0F0F0F; }
+QLabel#AppTitleLabel { color: #E0E0E0; font-size: 15px; font-weight: bold; padding-left: 5px; }
+QLabel#HeaderSubLabel { color: #B0B0B0; font-size: 11px; padding-right: 3px; padding-left: 10px; }
+QSlider#MasterIntensityFader::groove:horizontal { border: 1px solid #181818; height: 5px; background: #3A3A3A; margin: 2px 0; border-radius: 2px; }
+QSlider#MasterIntensityFader::handle:horizontal { background: #007AFF; border: 1px solid #005FCC; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }
+QPushButton#BlackoutButtonHeader { background-color: #5A5A5A; color: white; border-radius: 5px; padding: 5px; font-size: 10px; font-weight: bold; }
+QPushButton#BlackoutButtonHeader:checked { background-color: #FF3B30; border: 1px solid #D00000; }
+QTabWidget#MainTabWidget::pane { border-top: 1px solid #202020; background-color: #252525; }
+QTabBar::tab:north { background-color: #1E1E1E; color: #A0A0A0; border: 1px solid #0F0F0F; border-bottom: none; padding: 7px 15px; margin-right: 1px; border-top-left-radius: 5px; border-top-right-radius: 5px; font-weight: bold; min-width: 80px; }
+QTabBar::tab:north:hover { background-color: #282828; color: #D0D0D0; }
+QTabBar::tab:north:selected { background-color: #252525; color: #FFFFFF; border-color: #202020; }
+QWidget { background-color: #252525; color: #D0D0D0; font-family: "SF Pro Text", "Helvetica Neue", Arial, sans-serif; font-size: 12px; }
+QLabel { background-color: transparent; }
+QPushButton { background-color: #484848; color: white; border: 1px solid #383838; border-radius: 5px; padding: 7px 12px; font-weight: 500; }
+QPushButton:hover { background-color: #585858; } QPushButton:pressed { background-color: #3E3E3E; } QPushButton:disabled { background-color: #303030; color: #666666; }
+QPushButton:checked { background-color: #007AFF; border: 1px solid #005FCC;} 
+QPushButton#PrimaryButton { background-color: #007AFF; color: white; font-weight: bold; } QPushButton#PrimaryButton:hover { background-color: #006EE6; }
+QPushButton#DestructiveButton { background-color: #FF3B30; color: white; } QPushButton#DestructiveButton:hover { background-color: #E63228; }
+QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QListWidget { background-color: #1C1C1E; color: #E0E0E0; border: 1px solid #3A3A3C; border-radius: 5px; padding: 6px 8px; selection-background-color: #007AFF; selection-color: white; }
+QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QListWidget:focus { border: 1px solid #0A84FF; }
+QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button { border: none; width: 16px; }
+QListWidget::item { padding: 4px; } QListWidget::item:selected { background-color: #007AFF; color: white; }
+QComboBox { background-color: #3A3A3C; color: white; border: 1px solid #4A4A4E; border-radius: 5px; padding: 6px 25px 6px 10px; }
+QComboBox:hover { border-color: #5A5A5E; } QComboBox::drop-down { border: none; width: 20px; }
+QComboBox QAbstractItemView { background-color: #1C1C1E; color: white; border: 1px solid #3A3A3C; selection-background-color: #007AFF; }
+QFrame#AssignmentPanelFrame { background-color: #1C1C1E; border-left: 1px solid #0F0F0F; }
+QLabel#PanelTitleLabel { font-size: 13px; font-weight: bold; color: #F0F0F0; padding-bottom: 8px;}
+QLabel#SelectedAreaInfoLabel { color: #8A8A8E; font-size: 11px; }
+QGroupBox { background-color: #2C2C2E; border: 1px solid #3A3A3C; border-radius: 8px; margin-top: 10px; padding: 10px; font-weight: bold; color: #E0E0E0; }
+QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px; left: 10px; color: #A0A0A0; font-size: 11px; }
+QStatusBar#AppStatusBar { background-color: #0F0F0F; color: #8A8A8E; border-top: 1px solid #000000; }
+QLabel#StatusBarLabelRoblox, QStatusBar QLabel { color: #8A8A8E; padding: 0 5px; }
+
+/* Help Tab Specific Styling - Can be moved if themes become more complex */
+QTabWidget#HelpSubTabWidget::pane { 
+    border: 1px solid #3A3A3C; 
+    background-color: #1C1C1E; 
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+QTabBar#HelpSubTabWidget::tab:north { /* Target specifically */
+    background-color: #3A3A3C; 
+    color: #A0A0A0; 
+    border: 1px solid #2A2A2C; 
+    border-bottom: none; 
+    padding: 6px 12px; 
+    margin-right: 1px; 
+    border-top-left-radius: 4px; 
+    border-top-right-radius: 4px; 
+    font-weight: normal; 
+    font-size: 11px;
+}
+QTabBar#HelpSubTabWidget::tab:north:hover { 
+    background-color: #4A4A4E; 
+    color: #D0D0D0; 
+}
+QTabBar#HelpSubTabWidget::tab:north:selected { 
+    background-color: #1C1C1E; 
+    color: #FFFFFF; 
+    border-color: #3A3A3C; 
+    padding-bottom: 7px; 
+    margin-bottom: -1px; 
+}
+
+/* Scroll Area from SettingsTab - make it generic if used elsewhere */
+QScrollArea { 
+    border: none; 
+    background-color: transparent; /* To blend with tab background */
+} 

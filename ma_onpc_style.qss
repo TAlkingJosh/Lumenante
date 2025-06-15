@@ -1,0 +1,437 @@
+/* themes/ma_onpc_style.qss */
+
+/* Overall Window & Base Widget */
+QMainWindow {
+    background-color: #1A1A1A; /* Very dark grey, near black */
+}
+QWidget {
+    background-color: #222222; /* Base for most widgets if not overridden */
+    color: #E0E0E0; /* Light grey text */
+    font-family: "Roboto", "Segoe UI", "Helvetica Neue", Arial, sans-serif; /* MA uses Roboto, fallback to common UI fonts */
+    font-size: 13px; /* MA onPC seems to use a slightly larger base font */
+    font-weight: 400;
+}
+QLabel {
+    background-color: transparent;
+    color: #C0C0C0; /* Slightly dimmer for general labels */
+}
+
+/* App Header */
+QFrame#AppHeaderFrame {
+    background-color: #101010; /* Even darker for header */
+    border-bottom: 1px solid #2D2D2D;
+    min-height: 40px; 
+    padding: 0 5px; /* Add some padding to header content */
+}
+QLabel#AppTitleLabel {
+    color: #FFD700; /* MA Yellow */
+    font-size: 16px;
+    font-weight: 500; /* Medium weight */
+    padding-left: 8px;
+    margin-right: 10px; /* Space between title and command line */
+}
+QLineEdit#MACommandLineInput { /* Style for the placeholder command line */
+    background-color: #0A0A0A;
+    color: #B0B0B0;
+    border: 1px solid #282828;
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 13px;
+}
+QLineEdit#MACommandLineInput:focus {
+    border: 1px solid #FFD700;
+}
+QLabel#HeaderSubLabel {
+    color: #A0A0A0;
+    font-size: 12px;
+    padding-right: 5px;
+    padding-left: 12px;
+}
+QSlider#MasterIntensityFader::groove:horizontal {
+    border: 1px solid #000000;
+    height: 6px;
+    background: #383838;
+    margin: 2px 0;
+    border-radius: 3px;
+}
+QSlider#MasterIntensityFader::handle:horizontal {
+    background: #FFD700; /* MA Yellow */
+    border: 1px solid #E0B800; /* Darker yellow */
+    width: 15px;
+    height: 15px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+QPushButton#BlackoutButtonHeader {
+    background-color: #4A4A4A;
+    color: white;
+    border: 1px solid #202020;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    min-width: 50px;
+}
+QPushButton#BlackoutButtonHeader:checked {
+    background-color: #D32F2F; /* MA Red */
+    border: 1px solid #B71C1C;
+    color: white;
+}
+QPushButton#BlackoutButtonHeader:hover {
+    background-color: #5A5A5A;
+}
+QPushButton#BlackoutButtonHeader:checked:hover {
+    background-color: #E53935;
+}
+
+/* Main Tab Widget Styling */
+QTabWidget#MainTabWidget {
+    background-color: transparent; /* Allow main window bg to show if pane is also transparent */
+}
+QTabWidget#MainTabWidget::pane {
+    border: none; 
+    background-color: #1A1A1A; /* Content area of tabs, match main window */
+    padding: 0px; /* Pane should have no padding, tab content itself handles it */
+}
+
+/* Tabs on the NORTH (default style) */
+QTabWidget#MainTabWidget QTabBar::tab:north {
+    background-color: #2D2D2D;
+    color: #B0B0B0;
+    border: 1px solid #101010;
+    border-bottom: 1px solid #2D2D2D; 
+    padding: 8px 18px; 
+    margin-right: 1px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    font-weight: 500;
+    min-width: 90px; 
+    font-size: 13px;
+}
+QTabWidget#MainTabWidget QTabBar::tab:north:hover {
+    background-color: #383838;
+    color: #FFFFFF;
+}
+QTabWidget#MainTabWidget QTabBar::tab:north:selected {
+    background-color: #222222; 
+    color: #FFD700; 
+    border: 1px solid #101010;
+    border-bottom: 1px solid #222222; 
+    margin-bottom: -1px; 
+    padding-bottom: 9px; 
+}
+
+/* Tabs on the WEST (MA OnPC Style) */
+QTabWidget#MainTabWidget > QTabBar::tab:west { /* Target direct QTabBar child */
+    background-color: #1F1F1F; /* Darker than MA buttons but distinct */
+    color: #A0A0A0;
+    border: 1px solid #0A0A0A;
+    border-right: 1px solid #1F1F1F; /* Right border same as background */
+    padding: 10px 8px; /* Adjust padding for vertical text: more top/bottom, less left/right */
+    margin-bottom: 1px; /* Space between tabs */
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-top-right-radius: 0px; /* Sharp edge towards content */
+    border-bottom-right-radius: 0px;
+    font-weight: 500;
+    font-size: 13px; /* MA onPC text seems a bit larger for these */
+    min-height: 40px; /* Good height for command buttons */
+    max-width: 150px; /* Control max width of the tab bar itself if needed, or individual tabs */
+    min-width: 100px;
+    text-align: left; /* Align text to left within tab */
+}
+QTabWidget#MainTabWidget > QTabBar::tab:west:hover {
+    background-color: #2A2A2A;
+    color: #FFFFFF;
+}
+QTabWidget#MainTabWidget > QTabBar::tab:west:selected {
+    background-color: #2D2D2D; /* Selected tab is slightly lighter, more 'active' */
+    color: #FFD700; /* MA Yellow for selected tab text */
+    border: 1px solid #0A0A0A;
+    border-right: 1px solid #2D2D2D; /* Match its own background for seamless */
+    /* To make it look like it's "on top" of the pane edge */
+    margin-right: -1px; /* Pulls the tab right slightly over the pane border */
+    padding-right: 9px; /* Adjust padding to compensate for margin */
+}
+QTabWidget#MainTabWidget QTabBar { /* Style the tab bar itself if needed when vertical */
+    /* background-color: #151515; */ /* Optional: background for the entire tab bar area */
+    alignment: left;
+}
+
+
+/* General QPushButton Styling */
+QPushButton {
+    background-color: #3A3A3A;
+    color: #E0E0E0;
+    border: 1px solid #1F1F1F;
+    border-radius: 3px;
+    padding: 6px 12px;
+    font-weight: 500;
+    font-size: 13px;
+    min-height: 28px; 
+}
+QPushButton:hover {
+    background-color: #4A4A4A;
+    border-color: #2F2F2F;
+}
+QPushButton:pressed {
+    background-color: #2A2A2A;
+}
+QPushButton:disabled {
+    background-color: #2F2F2F;
+    color: #777777;
+    border-color: #101010;
+}
+QPushButton:checked { 
+    background-color: #FFB300; 
+    color: #101010;
+    border: 1px solid #E69500;
+}
+QPushButton:focus { 
+    outline: none;
+}
+
+/* Primary/Destructive Buttons */
+QPushButton#PrimaryButton {
+    background-color: #0277BD; 
+    color: white;
+    border-color: #01579B;
+}
+QPushButton#PrimaryButton:hover { background-color: #0288D1; }
+QPushButton#DestructiveButton {
+    background-color: #C62828; 
+    color: white;
+    border-color: #A02020;
+}
+QPushButton#DestructiveButton:hover { background-color: #D32F2F; }
+
+
+/* Input Fields */
+QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QListWidget {
+    background-color: #1C1C1C;
+    color: #E0E0E0;
+    border: 1px solid #2D2D2D;
+    border-radius: 3px;
+    padding: 6px 8px;
+    selection-background-color: #FFD700; 
+    selection-color: #101010; 
+    font-size: 13px;
+}
+QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QListWidget:focus {
+    border: 1px solid #FFD700; 
+}
+QSpinBox::up-button, QSpinBox::down-button,
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    border: none; /* Let's hide the default buttons, MA doesn't show them prominently */
+    background-color: transparent; /* #2A2A2A; */
+    width: 0px; /* Effectively hide if no icons */
+}
+/* If you have icons for spinbox arrows, uncomment and set path: */
+/* QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image: url(./icons/arrow_up_light.png); width: 12px; height: 12px;} */
+/* QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { image: url(./icons/arrow_down_light.png); width: 12px; height: 12px;} */
+QSpinBox, QDoubleSpinBox { padding-right: 3px; } /* Reduce padding if arrows hidden */
+
+QListWidget::item { padding: 5px; border-bottom: 1px solid #2A2A2A;}
+QListWidget::item:selected {
+    background-color: #FFD700; 
+    color: #101010;
+}
+QListWidget { border-radius: 3px; }
+
+
+/* ComboBox */
+QComboBox {
+    background-color: #3A3A3A;
+    color: #E0E0E0;
+    border: 1px solid #1F1F1F;
+    border-radius: 3px;
+    padding: 6px 10px; /* Adjusted padding, arrow width will add to right */
+    min-height: 28px;
+}
+QComboBox:hover {
+    background-color: #4A4A4A;
+    border-color: #2F2F2F;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px;
+    border-left: 1px solid #1F1F1F;
+    background-color: #3A3A3A; /* Match combobox bg */
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+QComboBox::drop-down:hover {
+    background-color: #4A4A4A;
+}
+QComboBox::down-arrow {
+    /* Use a character or provide an image */
+    /* For character, you might need to use a QLabel inside the ComboBox if supported by advanced styling or subclassing */
+    /* Using image for now, assuming you have it */
+    image: url(./icons/arrow_combo_down_light.png); 
+    width: 10px;
+    height: 10px;
+}
+QComboBox QAbstractItemView { 
+    background-color: #1C1C1C;
+    color: #E0E0E0;
+    border: 1px solid #2D2D2D;
+    selection-background-color: #FFD700;
+    selection-color: #101010;
+    padding: 2px;
+    outline: 0px; /* Remove focus outline from dropdown list */
+}
+
+/* Assignment Panel (MainTab right panel) */
+QFrame#AssignmentPanelFrame {
+    background-color: #1F1F1F; /* MA Right panels are typically very dark */
+    border-left: 1px solid #0A0A0A;
+    min-width: 280px; /* Ensure it has some presence */
+}
+QLabel#PanelTitleLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: #D0D0D0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2D2D2D;
+    margin-bottom: 5px;
+}
+QLabel#SelectedAreaInfoLabel {
+    color: #888888;
+    font-size: 11px;
+}
+
+/* GroupBox */
+QGroupBox {
+    background-color: #202020; 
+    border: 1px solid #2D2D2D;
+    border-radius: 4px;
+    margin-top: 10px;
+    padding: 12px;
+    font-weight: 500;
+    color: #D0D0D0;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 5px 2px 5px; 
+    left: 10px;
+    color: #A0A0A0;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+/* Status Bar */
+QStatusBar#AppStatusBar {
+    background-color: #0A0A0A;
+    color: #888888;
+    border-top: 1px solid #2D2D2D;
+    min-height: 20px; /* MA status bar is minimal */
+}
+QLabel#StatusBarLabelRoblox, QStatusBar QLabel {
+    color: #888888;
+    padding: 0 5px;
+    font-size: 11px;
+}
+
+/* Help Tab Specific Sub-Tabs */
+QTabWidget#HelpSubTabWidget { 
+    background-color: #202020; 
+}
+QTabWidget#HelpSubTabWidget::pane {
+    border: 1px solid #2D2D2D;
+    background-color: #1C1C1C; 
+    border-radius: 3px;
+}
+QTabBar#HelpSubTabWidget::tab { 
+    background-color: #333333;
+    color: #A0A0A0;
+    border: 1px solid #202020;
+    padding: 5px 10px;
+    margin-right: 1px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    font-weight: normal;
+    font-size: 12px;
+}
+QTabBar#HelpSubTabWidget::tab:hover {
+    background-color: #3F3F3F;
+    color: #D0D0D0;
+}
+QTabBar#HelpSubTabWidget::tab:selected {
+    background-color: #1C1C1C; 
+    color: #FFD700; 
+    border-bottom-color: #1C1C1C; 
+}
+
+/* Scroll Area & Scroll Bars */
+QScrollArea {
+    border: none;
+    background-color: transparent;
+}
+QScrollBar:vertical {
+    border: 1px solid #101010;
+    background: #222222;
+    width: 12px; /* Slimmer scrollbars */
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::handle:vertical {
+    background: #4A4A4A;
+    min-height: 25px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #5A5A5A;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: none; background: none; height: 0px;
+}
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical { background: none; } /* Hide arrows */
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+
+
+QScrollBar:horizontal {
+    border: 1px solid #101010;
+    background: #222222;
+    height: 12px; /* Slimmer scrollbars */
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::handle:horizontal {
+    background: #4A4A4A;
+    min-width: 25px;
+    border-radius: 5px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #5A5A5A;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    border: none; background: none; width: 0px;
+}
+QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal { background: none; } /* Hide arrows */
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
+
+/* Specific styles for InteractiveGridCanvas content if needed */
+/* (Often handled by drawing code or base QWidget styles) */
+InteractiveGridCanvas { /* Assuming objectName or direct type styling */
+    background-color: #0D0D0D; /* Very dark for the grid background, like MA screens */
+}
+
+/* Style the "MA COMMAND" placeholder in the header */
+QLineEdit#MACommandLineInput {
+    background-color: #0F0F0F;
+    border: 1px solid #252525;
+    color: #A0A0A0;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+QLineEdit#MACommandLineInput:focus {
+    border: 1px solidrgb(255, 255, 255); /* MA Yellow focus */
+    color: #E0E0E0;
+}
+
+/* Quick Palette buttons if defined in MainTab with objectName */
+/*
+QPushButton#QuickPaletteButton_Color { ... }
+QPushButton#QuickPaletteButton_Position { ... }
+*/

@@ -1,0 +1,69 @@
+/* themes/classic_light.qss - A very basic light theme example */
+QMainWindow { background-color: #F0F0F0; }
+QFrame#AppHeaderFrame { background-color: #E0E0E0; border-bottom: 1px solid #C0C0C0; }
+QLabel#AppTitleLabel { color: #333333; font-size: 15px; font-weight: bold; padding-left: 5px; }
+QLabel#HeaderSubLabel { color: #555555; font-size: 11px; padding-right: 3px; padding-left: 10px; }
+
+QTabWidget#MainTabWidget::pane { border-top: 1px solid #B0B0B0; background-color: #FFFFFF; }
+QTabBar::tab:north { background-color: #DCDCDC; color: #444444; border: 1px solid #C0C0C0; border-bottom: none; padding: 7px 15px; margin-right: 1px; border-top-left-radius: 5px; border-top-right-radius: 5px; font-weight: bold; min-width: 80px; }
+QTabBar::tab:north:hover { background-color: #C8C8C8; color: #111111; }
+QTabBar::tab:north:selected { background-color: #FFFFFF; color: #000000; border-color: #B0B0B0; }
+
+QWidget { background-color: #FFFFFF; color: #333333; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; }
+QLabel { background-color: transparent; } /* Important for labels on colored backgrounds */
+
+QPushButton { background-color: #E1E1E1; color: #000000; border: 1px solid #ADADAD; border-radius: 4px; padding: 6px 11px; font-weight: normal; }
+QPushButton:hover { background-color: #CACACA; } 
+QPushButton:pressed { background-color: #B0B0B0; } 
+QPushButton:disabled { background-color: #D4D4D4; color: #888888; }
+QPushButton:checked { background-color: #C9DAF8; border: 1px solid #74A3F3;}
+QPushButton#PrimaryButton { background-color: #0078D7; color: white; font-weight: bold; } QPushButton#PrimaryButton:hover { background-color: #106EBE; }
+QPushButton#DestructiveButton { background-color: #D9534F; color: white; } QPushButton#DestructiveButton:hover { background-color: #C9302C; }
+
+QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QListWidget { background-color: #FFFFFF; color: #000000; border: 1px solid #ABADB3; border-radius: 3px; padding: 5px 7px; selection-background-color: #0078D7; selection-color: white; }
+QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QListWidget:focus { border: 1px solid #0078D7; }
+QListWidget::item { padding: 4px; } QListWidget::item:selected { background-color: #0078D7; color: white; }
+
+QComboBox { background-color: #E1E1E1; color: black; border: 1px solid #ADADAD; border-radius: 4px; padding: 5px 25px 5px 9px; }
+QComboBox:hover { border-color: #7EB4EA; } QComboBox::drop-down { border: none; width: 20px; }
+QComboBox QAbstractItemView { background-color: #FFFFFF; color: black; border: 1px solid #ADADAD; selection-background-color: #0078D7; }
+
+QFrame#AssignmentPanelFrame { background-color: #F5F5F5; border-left: 1px solid #D0D0D0; }
+QLabel#PanelTitleLabel { font-size: 13px; font-weight: bold; color: #222222; padding-bottom: 8px;}
+QLabel#SelectedAreaInfoLabel { color: #666666; font-size: 11px; }
+
+QGroupBox { background-color: #F9F9F9; border: 1px solid #D0D0D0; border-radius: 6px; margin-top: 10px; padding: 10px; font-weight: bold; color: #333333; }
+QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px; left: 10px; color: #555555; font-size: 11px; }
+
+QStatusBar#AppStatusBar { background-color: #E0E0E0; color: #555555; border-top: 1px solid #C0C0C0; }
+QLabel#StatusBarLabelRoblox, QStatusBar QLabel { color: #555555; padding: 0 5px; }
+
+/* Help Tab Specific Styling for Light Theme */
+QTabWidget#HelpSubTabWidget::pane { 
+    border: 1px solid #C0C0C0; 
+    background-color: #FFFFFF; 
+}
+QTabBar#HelpSubTabWidget::tab:north {
+    background-color: #E8E8E8; 
+    color: #333333; 
+    border: 1px solid #C0C0C0; 
+    border-bottom: none; 
+}
+QTabBar#HelpSubTabWidget::tab:north:hover { 
+    background-color: #D8D8D8; 
+}
+QTabBar#HelpSubTabWidget::tab:north:selected { 
+    background-color: #FFFFFF; 
+    color: #000000; 
+    border-color: #C0C0C0; 
+}
+QScrollArea { 
+    border: none; 
+    background-color: transparent;
+} 
+
+/* Specific for the light theme: Slider */
+QSlider#MasterIntensityFader::groove:horizontal { border: 1px solid #BDBDBD; height: 5px; background: #D3D3D3; margin: 2px 0; border-radius: 2px; }
+QSlider#MasterIntensityFader::handle:horizontal { background: #0078D7; border: 1px solid #005A9E; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }
+QPushButton#BlackoutButtonHeader { background-color: #A9A9A9; color: black; border-radius: 5px; padding: 5px; font-size: 10px; font-weight: bold; }
+QPushButton#BlackoutButtonHeader:checked { background-color: #FF6347; border: 1px solid #E0523F; color: white; }

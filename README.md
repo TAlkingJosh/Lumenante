@@ -1,6 +1,6 @@
 # Lumenante by SpectraForge
 
-*Discord Server for help, models, and more:*https://discord.gg/cvcPm6gnth
+*Discord Server for help, models, and more:* https://discord.gg/cvcPm6gnth
 
 **Lumenante** is a powerful lighting control application designed to emulate the workflow of professional lighting consoles. It provides a comprehensive toolset for designing, programming, and operating light shows, with a primary focus on live integration with the **Roblox** platform.
 

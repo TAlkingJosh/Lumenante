@@ -56,7 +56,7 @@ lumenante_V#.#/
 ### 2. Roblox Setup
 
 1.  Open your place in **Roblox Studio**.
-2.  Drag and drop the `Lumenante.rbxm` file directly into the main 3D viewport of Roblox Studio.
+2.  Drag and drop the `Lumenante.rbxm` file directly into Roblox Studio.
 3.  In the **Explorer** window, you will see a folder titled `Lumenant`, take the two models named `Ungroup in Workspace` & `Ungroup in ServerScriptService`
 4.  Take the files and place them in their respective places.
 5.  Enable HTTP Requests for your game:

@@ -27,6 +27,9 @@ Created by **Talking_Josh** under the **SpectraForge** brand.
 
 ## Setup Guide
 
+**If you use the .exe it may be detected as a virus, if you want to be safe you can download the source files.**
+
+
 
 https://github.com/user-attachments/assets/a426ed74-769d-47e0-868d-e735eb9fe079
 

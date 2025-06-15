@@ -1,5 +1,6 @@
 # Lumenante by SpectraForge
 
+
 **Lumenante** is a powerful lighting control application designed to emulate the workflow of professional lighting consoles. It provides a comprehensive toolset for designing, programming, and operating light shows, with a primary focus on live integration with the **Roblox** platform.
 
 Created by **Talking_Josh** under the **SpectraForge** brand.
@@ -31,15 +32,17 @@ Follow these steps to get Lumenante and your Roblox game connected.
 
 1.  Download the latest release. You will have a folder named `lumenante`.
 2.  Inside this folder is the main application, `lumenante.exe`.
-3.  **Important:** The `lumenante.exe` file must remain in the same folder alongside the `themes`, `plugins`, and `_internal` directories for it to function correctly. Do not move the `.exe` file by itself.
+3.  **Important:** The `lumenante.exe` file must remain in the same folder as the `_internal` directory for it to function correctly. Do not move the `.exe` file by itself.
+4.  To add custom themes or plugins, you will place them inside the respective folders within the `_internal` directory.
 
 The final structure should look like this:
 ```
 lumenante/
 ├── lumenante.exe
-├── plugins/
-├── themes/
-└── _internal/ (and other files)
+└── _internal/
+    ├── plugins/
+    ├── themes/
+    └── (and other files)
 ```
 
 ### 2. Roblox Setup

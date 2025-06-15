@@ -1,6 +1,6 @@
 # theme_manager.py
 import os
-import json # Added for manifest parsing
+import json
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QTabWidget
 from PyQt6.QtCore import QSettings
@@ -88,8 +88,6 @@ def get_theme_preferred_tab_position(theme_name: str) -> QTabWidget.TabPosition:
     if theme_name == DEFAULT_THEME_NAME and not manifest_file.exists():
         return DEFAULT_TAB_POSITION # Explicitly return default for the default theme if no manifest
     
-    # Special handling for ma_onpc_style if no manifest, assume West for backward compatibility
-    # with previous hardcoding, but a manifest is preferred.
     if theme_name == "ma_onpc_style" and not manifest_file.exists():
         print(f"Warning: Theme 'ma_onpc_style' is missing a manifest. Defaulting tabPosition to West for this theme.")
         return QTabWidget.TabPosition.West
@@ -119,7 +117,7 @@ def apply_theme_to_app(app_instance: QApplication, theme_name: str) -> tuple[boo
             # Return default tab position even if styling fails, so app structure is consistent
             return False, get_theme_preferred_tab_position(DEFAULT_THEME_NAME) 
 
-    # At this point, qss_content is not None (it's either for the requested theme or default)
+
     app_instance.setStyleSheet(qss_content)
     print(f"Theme QSS for '{applied_theme_name}' applied.")
     

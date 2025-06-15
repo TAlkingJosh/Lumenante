@@ -60,7 +60,7 @@ lumenante_V#.#/
 3.  In the **Explorer** window, you will see a folder titled `Lumenant`, take the two models named `Ungroup in Workspace` & `Ungroup in ServerScriptService`
 4.  Take the files and place them in their respective places.
 5.  Enable HTTP Requests for your game:
-    -   Go to **Home -> Game Settings -> Security**.
+    -   Go to **File -> Game Settings -> Security**.
     -   Turn on the **"Allow HTTP Requests"** toggle.
     -   Click **Save**.
 

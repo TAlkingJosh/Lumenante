@@ -60,7 +60,7 @@ lumenante/
 ### 3. Running the System
 
 1.  **You must start the app first** run `lumenante.exe`
-2.  **Start you roblox studio instance** you can either `Run` or `Test` in the top left, I use `Test` for easier use.
+2.  **Start you roblox studio instance** you can either `Run` or `Test` in the top left, I use `Run` for easier use.
 3.  In the Lumenante application, look at the status bar at the bottom. It should change from "ROBLOX: Disconnected" to "ROBLOX: Listening on...".
 
 You are now connected! Any changes you make to fixtures in Lumenante will be sent to the Roblox game in real-time.

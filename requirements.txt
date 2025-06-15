@@ -1,0 +1,5 @@
+aiohttp
+inputs
+numpy
+PyOpenGL
+PyQt6

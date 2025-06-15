@@ -1732,7 +1732,6 @@ class Lumenante(QMainWindow):
             cursor = self.db_connection.cursor()
             cursor.execute("SELECT id FROM fixtures WHERE id IN (SELECT fixture_id FROM fixture_group_mappings WHERE group_id = ?)", (group_id,))
             for (fix_id,) in cursor.fetchall():
-                # We just need to trigger an update. The update function will re-apply all modulators.
                 self.update_fixture_data_and_notify(fix_id, {})
         
         except Exception as e:
@@ -2048,7 +2047,6 @@ class Lumenante(QMainWindow):
         if not self.is_live_mode_active():
             return
         
-        # We need to send FIDs to Roblox, not database IDs.
         fids_to_send = []
         for db_id in selected_ids:
             if db_id in self.live_fixture_states:
@@ -2297,7 +2295,6 @@ class Lumenante(QMainWindow):
             cursor = self.db_connection.cursor()
             cursor.execute("SELECT id FROM fixtures WHERE id IN (SELECT fixture_id FROM fixture_group_mappings WHERE group_id = ?)", (group_id,))
             for (fix_id,) in cursor.fetchall():
-                # We just need to trigger an update. The update function will re-apply all modulators.
                 self.update_fixture_data_and_notify(fix_id, {})
         
         except Exception as e:
@@ -2566,7 +2563,6 @@ class Lumenante(QMainWindow):
         settings = self.settings
         settings.beginGroup("keybinds")
         for action_id_raw in settings.childKeys():
-            # QSettings may escape some characters, so we un-escape them here.
             action_id = action_id_raw.replace("_", ".")
             key_sequence_str = settings.value(action_id_raw, "", type=str)
             self.keybind_map[action_id_raw] = key_sequence_str # Populate the registry

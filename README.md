@@ -49,23 +49,22 @@ lumenante/
 
 1.  Open your place in **Roblox Studio**.
 2.  Drag and drop the `Lumenante.rbxm` file directly into the main 3D viewport of Roblox Studio.
-3.  In the **Explorer** window, you will see two new models:
-    -   `LumenanteReceiver` (likely in Workspace)
-    -   `Fixtures` (likely in Workspace)
-4.  Drag the **`LumenanteReceiver`** model from its current location and place it into **`ServerScriptService`**. Right-click it and select "Ungroup".
-5.  Drag the **`Fixtures`** model from its current location and place it directly under **`Workspace`**. Right-click it and select "Ungroup". This folder will contain your sample fixture models.
-6.  Enable HTTP Requests for your game:
+3.  In the **Explorer** window, you will see a folder titled `Lumenant`, take the two models named `Ungroup in Workspace` & `Ungroup in ServerScriptService`
+4.  Take the files and place them in their respective places.
+5.  Enable HTTP Requests for your game:
     -   Go to **Home -> Game Settings -> Security**.
     -   Turn on the **"Allow HTTP Requests"** toggle.
     -   Click **Save**.
 
 ### 3. Running the System
 
-1.  **Start your Roblox game.** You can do this by clicking "Play" in Studio or by running a live server.
-2.  **Run `lumenante.exe`**.
+1.  **You must start the app first** run `lumenante.exe`
+2.  **Start you roblox studio instance** you can either `Run` or `Test` in the top left, I use `Test` for easier use.
 3.  In the Lumenante application, look at the status bar at the bottom. It should change from "ROBLOX: Disconnected" to "ROBLOX: Listening on...".
 
 You are now connected! Any changes you make to fixtures in Lumenante will be sent to the Roblox game in real-time.
+
+***This app only works in studio for now***, until I buy/own a server, roblox won't be able to connect to the app.
 
 ---
 
@@ -76,11 +75,11 @@ Here’s a quick guide to creating a simple look.
 1.  **Patch a Fixture:**
     -   Go to the **"Patch & Fixtures"** tab.
     -   Click **"Add New"**. The form on the right will activate.
-    -   Give it a **Name** (e.g., "Front Spot"), a **FID** (e.g., 101), and click **"Create New Fixture(s)"**.
+    -   Give it a **Name** (e.g., "Front Spot"), a **FID** (e.g., 1), and click **"Create New Fixture(s)"**.
 
 2.  **Control the Fixture:**
     -   Go to the **"Layouts"** tab.
-    -   In the header's command line, type `fixture 101 at 100` and press **Enter**. This selects fixture 101 and sets its brightness to 100%.
+    -   In the header's command line, type `fixture 1 at 100` and press **Enter**. This selects fixture 1 and sets its brightness to 100%.
     -   You should see the fixture light up in the **"Stage 3D"** tab and in your Roblox game.
 
 3.  **Store a Preset:**
@@ -124,7 +123,7 @@ To run this project from source, you will need Python 3.10+ and the libraries li
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/lumenante.git
+git clone https://github.com/TAlkingJosh/lumenante.git
 cd lumenante
 
 # Create a virtual environment (recommended)

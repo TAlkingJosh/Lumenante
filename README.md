@@ -42,7 +42,7 @@ Follow these steps to get Lumenante and your Roblox game connected.
 
 ### 1. Application Setup
 
-1.  Download the latest release. You will have a folder named `lumenante`.
+1.  Download the [latest release](https://github.com/TAlkingJosh/Lumenante/releases). You will have a folder named `lumenante_V#.#`.
 2.  Inside this folder is the main application, `lumenante.exe`.
 3.  **Important:** The `lumenante.exe` file must remain in the same folder as the `_internal` directory for it to function correctly. Do not move the `.exe` file by itself.
 4.  To add custom themes or plugins, you will place them inside the respective folders within the `_internal` directory.
@@ -131,7 +131,7 @@ The command line is the fastest way to program. Here are some essential commands
 
 ## Development
 
-To run this project from source, you will need Python 3.10+ and the libraries listed in `requirements.txt`.
+To run this project from source, you will need [Python 3.13](https://www.python.org/downloads/) and the libraries listed in `requirements.txt`.
 
 ```bash
 # Clone the repository

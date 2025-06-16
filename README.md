@@ -2,8 +2,6 @@
 
 
 ![Lumenante](https://github.com/user-attachments/assets/46f1a368-c7b6-4402-aca9-7435118701e8)
-![Lumenante](https://github.com/user-attachments/assets/46f1a368-c7b6-4402-aca9-7435118701e8)
-
 
 
 *[Discord Server](https://discord.gg/SGxzA4esc4) for help, models, and more*

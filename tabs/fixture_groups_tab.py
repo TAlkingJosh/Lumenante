@@ -336,25 +336,22 @@ class FixtureGroupsTab(QWidget):
             QMessageBox.critical(self, "DB Error", f"Error removing fixtures from group: {e}")
 
     def refresh_all_data_and_ui(self):
-        selected_group_item = self.groups_list_widget.currentItem()
-        selected_group_id_before_refresh = self.current_selected_group_id
+        """
+        Public slot to completely refresh the tab's state from the database,
+        preserving the current group selection if possible.
+        """
+        # 1. Get the ID of the currently selected group
+        selected_id = self.current_selected_group_id
         
-        self.load_groups() 
+        # 2. Reload the groups list from the database. This clears the list widget
+        # and calls on_group_selected(), which will clear the fixture lists.
+        self.load_groups()
         
-        if selected_group_id_before_refresh:
+        # 3. Find and re-select the group by its ID. This will trigger
+        # on_group_selected() again, which will repopulate the fixture lists correctly.
+        if selected_id:
             for i in range(self.groups_list_widget.count()):
                 item = self.groups_list_widget.item(i)
-                if item.data(Qt.ItemDataRole.UserRole) == selected_group_id_before_refresh:
-                    self.groups_list_widget.setCurrentItem(item) 
-                    # on_group_selected will be called automatically by setCurrentItem if selection changes
-                    # or if it's the same item, we might need to manually call it if content *within* that selection needs refresh.
-                    # Since load_groups calls on_group_selected at the end if nothing is selected,
-                    # and setCurrentItem calls it if selection changes, this should mostly be covered.
-                    # However, explicitly calling if it's the *same* item might be safer if underlying data changed.
-                    if self.groups_list_widget.currentItem() and self.groups_list_widget.currentItem().data(Qt.ItemDataRole.UserRole) == selected_group_id_before_refresh:
-                        self.on_group_selected() 
+                if item.data(Qt.ItemDataRole.UserRole) == selected_id:
+                    self.groups_list_widget.setCurrentItem(item)
                     break
-            else: 
-                self.on_group_selected()
-        else:
-            self.on_group_selected()

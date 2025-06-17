@@ -31,7 +31,7 @@ Created by **Talking_Josh** under the **SpectraForge** brand.
 
 ## Setup Guide
 
-**If you use the .exe it will be detected as a virus, this is because PyInstaller is used and I don't own a certficate. If you want to be safe you can download the source files.**
+**If you use the .exe it will be detected as a virus, this is because PyInstaller is used and I don't own a certficate. If you want to be safe you can download the source files and follow the [development](https://github.com/TAlkingJosh/Lumenante?tab=readme-ov-file#development).**
 
 
 

@@ -907,7 +907,7 @@ class MainTab(QWidget):
 
 
         self.interactive_canvas.update_area_properties_and_widget(area.id, new_func_type, new_data)
-        self.parent_tab.save_defined_areas_to_settings()
+        self.save_defined_areas_to_settings()
         QMessageBox.information(self, "Assignment Saved", f"Area assignment updated to '{new_func_type}'.")
 
     def handle_area_selected_for_panel(self, area: Optional[DefinedArea]):

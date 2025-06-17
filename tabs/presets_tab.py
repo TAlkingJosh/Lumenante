@@ -23,7 +23,7 @@ class PresetDialog(QDialog):
         
         self.type_combo = QComboBox()
         self.type_combo.addItems(["All", "Dimmer", "Color", "Position", "Beam", "Gobo"])
-        idx = self.type_combo.findText(current_type, Qt.MatchFlag.MatchFixedString | Qt.MatchFlag.CaseInsensitive)
+        idx = self.type_combo.findText(current_type, Qt.MatchFlag.MatchFixedString)
         if idx != -1: self.type_combo.setCurrentIndex(idx)
         self.type_combo.setEnabled(is_new) # Only allow setting type on creation
         type_tooltip = "Select the type of parameters this preset will store.\n'All' stores everything. Cannot be changed after creation."

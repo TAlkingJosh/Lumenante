@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QPushButton, QMessageBox, QDialog, QFormLayout, QLineEdit, QComboBox,
     QDoubleSpinBox, QDialogButtonBox, QSplitter, QGroupBox,
-    QSizePolicy, QCheckBox, QSpacerItem
+    QSizePolicy, QCheckBox, QSpacerItem, QSpinBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 import json
@@ -11,319 +11,296 @@ import sqlite3
 
 class LoopPaletteEffectConfigWidget(QWidget):
     """ A widget to configure a single effect within a loop palette. """
-    def __init__(self, effect_number_display: int, parent_form: 'LoopPaletteEditFormWidget', is_secondary=False):
+    effect_type_changed = pyqtSignal(str)
+
+    # Centralized schema for all effect types. This makes adding new effects much easier.
+    EFFECT_SCHEMAS = {
+        "sine_wave": {
+            "label": "Sine Wave",
+            "targets": ["rotation_y", "rotation_x", "brightness", "zoom", "focus"],
+            "params": [
+                {'key': 'speed_hz', 'label': 'Speed', 'widget': QDoubleSpinBox, 'props': {'range': (0.01, 10.0), 'decimals': 2, 'suffix': ' Hz'}, 'default': 0.2},
+                {'key': 'size', 'label': 'Size', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 360.0), 'decimals': 1, 'suffix': ' units'}, 'default': 45.0},
+                {'key': 'center', 'label': 'Center', 'widget': QDoubleSpinBox, 'props': {'range': (-360.0, 360.0), 'decimals': 1, 'suffix': ' units'}, 'default': 0.0},
+                {'key': 'phase_degrees', 'label': 'Phase Offset', 'widget': QDoubleSpinBox, 'props': {'range': (0, 359.9), 'decimals': 1, 'suffix': ' °'}, 'default': 0.0},
+                {'key': 'direction', 'label': 'Direction', 'widget': QComboBox, 'props': {'items': ["Forward", "Backward"]}, 'default': "Forward"},
+                {'key': 'group_mode', 'label': 'Group Mode', 'widget': QComboBox, 'props': {'items': {"All Same Phase": "all_same_phase", "Spread Phase Evenly": "spread_phase", "Block - Groups of 2": "block_2", "Block - Groups of 3": "block_3", "Block - Groups of 4": "block_4"}}, 'default': "all_same_phase"},
+                {'key': 'wing_style', 'label': 'Wing Style', 'widget': QComboBox, 'props': {'items': {"None": "none", "Symmetrical 2 Wings": "symmetrical_2_wings", "Symmetrical 3 Wings": "symmetrical_3_wings", "Asymmetrical 2 Wings": "asymmetrical_2_wings"}}, 'default': "none"},
+                {'key': 'wing_center_percent', 'label': 'Wing Center', 'widget': QDoubleSpinBox, 'props': {'range': (0.0, 100.0), 'decimals': 1, 'suffix': ' %'}, 'default': 50.0, 'condition': lambda cfg: cfg.get('wing_style') == 'asymmetrical_2_wings'},
+            ]
+        },
+        "circle": {
+            "label": "Circle (Pan/Tilt)",
+            "implicit_target": "pan_tilt_shape",
+            "params": [
+                {'key': 'speed_hz', 'label': 'Speed', 'widget': QDoubleSpinBox, 'props': {'range': (0.01, 10.0), 'decimals': 2, 'suffix': ' Hz'}, 'default': 0.2},
+                {'key': 'radius_pan', 'label': 'Pan Radius', 'widget': QDoubleSpinBox, 'props': {'range': (0.0, 180.0), 'decimals': 1, 'suffix': ' °'}, 'default': 45.0},
+                {'key': 'radius_tilt', 'label': 'Tilt Radius', 'widget': QDoubleSpinBox, 'props': {'range': (0.0, 180.0), 'decimals': 1, 'suffix': ' °'}, 'default': 30.0},
+                {'key': 'center_pan', 'label': 'Pan Center', 'widget': QDoubleSpinBox, 'props': {'range': (-180.0, 180.0), 'decimals': 1, 'suffix': ' °'}, 'default': 0.0},
+                {'key': 'center_tilt', 'label': 'Tilt Center', 'widget': QDoubleSpinBox, 'props': {'range': (-180.0, 180.0), 'decimals': 1, 'suffix': ' °'}, 'default': 0.0},
+                {'key': 'phase_degrees', 'label': 'Start Phase', 'widget': QDoubleSpinBox, 'props': {'range': (0, 359.9), 'decimals': 1, 'suffix': ' °'}, 'default': 0.0},
+                {'key': 'group_mode', 'label': 'Group Mode', 'widget': QComboBox, 'props': {'items': {"All Same Phase": "all_same_phase", "Spread Phase Evenly": "spread_phase"}}, 'default': "all_same_phase"},
+            ]
+        },
+        "u_shape": {"label": "U-Shape (Pan/Tilt)", "implicit_target": "pan_tilt_shape", "params": [
+                {'key': 'speed_hz', 'label': 'Speed', 'widget': QDoubleSpinBox, 'props': {'range': (0.01, 10.0), 'decimals': 2, 'suffix': ' Hz'}, 'default': 0.5},
+                {'key': 'width', 'label': 'Width (Pan)', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 360.0), 'decimals': 1, 'suffix': ' °'}, 'default': 90.0},
+                {'key': 'height', 'label': 'Height (Tilt)', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 180.0), 'decimals': 1, 'suffix': ' °'}, 'default': 45.0},
+                {'key': 'orientation', 'label': 'Orientation', 'widget': QComboBox, 'props': {'items': ["Up", "Down", "Left", "Right"]}, 'default': "Up"},
+        ]},
+        "figure_8": {"label": "Figure 8 (Pan/Tilt)", "implicit_target": "pan_tilt_shape", "params": [
+                {'key': 'speed_hz', 'label': 'Speed', 'widget': QDoubleSpinBox, 'props': {'range': (0.01, 10.0), 'decimals': 2, 'suffix': ' Hz'}, 'default': 0.5},
+                {'key': 'width', 'label': 'Width (Pan)', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 360.0), 'decimals': 1, 'suffix': ' °'}, 'default': 90.0},
+                {'key': 'height', 'label': 'Height (Tilt)', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 180.0), 'decimals': 1, 'suffix': ' °'}, 'default': 45.0},
+        ]},
+        "bally": {"label": "Bally (Fan)", "implicit_target": "pan_tilt_shape", "params": [
+                {'key': 'speed_hz', 'label': 'Speed', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 10.0), 'decimals': 2, 'suffix': ' Hz'}, 'default': 1.0},
+                {'key': 'width', 'label': 'Width (Pan)', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 360.0), 'decimals': 1, 'suffix': ' °'}, 'default': 90.0},
+        ]},
+        "stagger": {"label": "Stagger (Dimmer Flicker)", "implicit_target": "dimmer_stagger", "params": [
+                {'key': 'rate_hz', 'label': 'Rate', 'widget': QDoubleSpinBox, 'props': {'range': (0.1, 50.0), 'decimals': 1, 'suffix': ' Hz'}, 'default': 10.0},
+        ]},
+    }
+
+    def __init__(self, parent_form: 'LoopPaletteEditFormWidget'):
         super().__init__(parent_form)
         self.parent_form = parent_form
-        self.is_secondary_effect_config = is_secondary
+        
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0,0,0,0)
 
-        layout = QFormLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(8)
+        # Static part of the form
+        self.static_form_layout = QFormLayout()
+        self.static_form_layout.setContentsMargins(5, 5, 5, 5)
+        self.static_form_layout.setSpacing(8)
 
         self.effect_type_combo = QComboBox()
-        self.effect_type_combo.addItem("Sine Wave", "sine_wave")
-        self.effect_type_combo.addItem("Circle (Pan/Tilt)", "circle")
-        self.effect_type_combo.addItem("U-Shape (Pan/Tilt)", "u_shape")
-        self.effect_type_combo.addItem("Figure 8 (Pan/Tilt)", "figure_8")
-        self.effect_type_combo.addItem("Bally (Fan)", "bally")
-        self.effect_type_combo.addItem("Stagger (Dimmer Flicker)", "stagger")
-        self.effect_type_combo.currentTextChanged.connect(self.update_specific_config_fields_visibility)
-        layout.addRow("Effect Type:", self.effect_type_combo)
+        for key, schema in self.EFFECT_SCHEMAS.items():
+            self.effect_type_combo.addItem(schema['label'], key)
+        self.effect_type_combo.currentIndexChanged.connect(self._rebuild_form_for_effect_type)
+        self.static_form_layout.addRow("Effect Type:", self.effect_type_combo)
 
-        self.target_param_combo = QComboBox()
-        self.target_param_combo.addItem("Pan (rotation_y)", "rotation_y")
-        self.target_param_combo.addItem("Tilt (rotation_x)", "rotation_x")
-        self.target_param_combo.addItem("Dimmer (brightness)", "brightness")
-        self.target_param_combo.addItem("Zoom", "zoom")
-        self.target_param_combo.addItem("Focus", "focus")
-        self.target_param_combo.currentTextChanged.connect(self._update_sine_wave_spinbox_contexts_for_this_effect)
-        layout.addRow("Target Parameter:", self.target_param_combo)
+        self.main_layout.addLayout(self.static_form_layout)
 
-        self.sine_wave_group = QGroupBox("Sine Config")
-        self.sine_wave_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
-        sine_layout = QFormLayout(self.sine_wave_group)
-        sine_layout.setContentsMargins(6, 8, 6, 6)
-        sine_layout.setSpacing(7)
-        self.speed_spinbox_sine = QDoubleSpinBox(); self.speed_spinbox_sine.setRange(0.01, 10.0); self.speed_spinbox_sine.setDecimals(2); self.speed_spinbox_sine.setSuffix(" Hz")
-        sine_layout.addRow("Speed:", self.speed_spinbox_sine)
-        self.size_spinbox_sine = QDoubleSpinBox(); self.size_spinbox_sine.setRange(0.1, 360.0); self.size_spinbox_sine.setDecimals(1); self.size_spinbox_sine.setSuffix(" units")
-        sine_layout.addRow("Size:", self.size_spinbox_sine)
-        self.center_spinbox_sine = QDoubleSpinBox(); self.center_spinbox_sine.setRange(-360.0, 360.0); self.center_spinbox_sine.setDecimals(1); self.center_spinbox_sine.setSuffix(" units")
-        sine_layout.addRow("Center:", self.center_spinbox_sine)
-        self.phase_spinbox_sine = QDoubleSpinBox(); self.phase_spinbox_sine.setRange(0, 359.9); self.phase_spinbox_sine.setDecimals(1); self.phase_spinbox_sine.setSuffix(" °")
-        sine_layout.addRow("Phase Offset:", self.phase_spinbox_sine)
+        # Dynamic part will be in a groupbox
+        self.dynamic_options_group = QGroupBox("Configuration")
+        self.dynamic_options_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
+        self.dynamic_form_layout = QFormLayout(self.dynamic_options_group)
+        self.dynamic_form_layout.setContentsMargins(6, 8, 6, 6)
+        self.dynamic_form_layout.setSpacing(7)
+        self.main_layout.addWidget(self.dynamic_options_group)
+
+        self.dynamic_widgets = {} # To hold dynamically created widgets
+
+        self._rebuild_form_for_effect_type()
+    
+    def get_current_effect_type(self) -> str:
+        return self.effect_type_combo.currentData()
+
+    def get_current_target_parameter(self) -> str | None:
+        """Returns the target parameter, either implicit or from the combo."""
+        effect_key = self.get_current_effect_type()
+        schema = self.EFFECT_SCHEMAS.get(effect_key, {})
         
-        self.direction_combo_sine = QComboBox()
-        self.direction_combo_sine.addItems(["Forward", "Backward"])
-        sine_layout.addRow("Direction:", self.direction_combo_sine)
-
-        self.group_mode_combo_sine = QComboBox()
-        self.group_mode_combo_sine.addItem("All Same Phase", "all_same_phase")
-        self.group_mode_combo_sine.addItem("Spread Phase Evenly", "spread_phase")
-        self.group_mode_combo_sine.addItem("Block - Groups of 2", "block_2")
-        self.group_mode_combo_sine.addItem("Block - Groups of 3", "block_3")
-        self.group_mode_combo_sine.addItem("Block - Groups of 4", "block_4")
-        sine_layout.addRow("Group Mode:", self.group_mode_combo_sine) 
-
-        self.wing_style_combo_sine = QComboBox()
-        self.wing_style_combo_sine.addItem("None", "none")
-        self.wing_style_combo_sine.addItem("Symmetrical 2 Wings", "symmetrical_2_wings")
-        self.wing_style_combo_sine.addItem("Symmetrical 3 Wings", "symmetrical_3_wings")
-        self.wing_style_combo_sine.addItem("Asymmetrical 2 Wings", "asymmetrical_2_wings")
-        self.wing_style_combo_sine.currentIndexChanged.connect(self._on_wing_style_changed)
-        sine_layout.addRow("Wing Style:", self.wing_style_combo_sine)
+        if schema.get("implicit_target"):
+            return schema["implicit_target"]
         
-        self.wing_center_percent_label = QLabel("Wing Center:")
-        self.wing_center_percent_spinbox = QDoubleSpinBox(); self.wing_center_percent_spinbox.setRange(0.0, 100.0); self.wing_center_percent_spinbox.setDecimals(1); self.wing_center_percent_spinbox.setSuffix(" %")
-        sine_layout.addRow(self.wing_center_percent_label, self.wing_center_percent_spinbox)
-        layout.addWidget(self.sine_wave_group)
-
-        self.circle_group = QGroupBox("Circle Config")
-        self.circle_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
-        circle_layout = QFormLayout(self.circle_group)
-        circle_layout.setContentsMargins(6, 8, 6, 6)
-        circle_layout.setSpacing(7)
-        self.speed_spinbox_circle = QDoubleSpinBox(); self.speed_spinbox_circle.setRange(0.01, 10.0); self.speed_spinbox_circle.setDecimals(2); self.speed_spinbox_circle.setSuffix(" Hz")
-        circle_layout.addRow("Speed:", self.speed_spinbox_circle)
-        self.radius_pan_spinbox = QDoubleSpinBox(); self.radius_pan_spinbox.setRange(0.0, 180.0); self.radius_pan_spinbox.setDecimals(1); self.radius_pan_spinbox.setSuffix(" °")
-        circle_layout.addRow("Pan Radius:", self.radius_pan_spinbox)
-        self.radius_tilt_spinbox = QDoubleSpinBox(); self.radius_tilt_spinbox.setRange(0.0, 180.0); self.radius_tilt_spinbox.setDecimals(1); self.radius_tilt_spinbox.setSuffix(" °")
-        circle_layout.addRow("Tilt Radius:", self.radius_tilt_spinbox)
-        self.center_pan_spinbox = QDoubleSpinBox(); self.center_pan_spinbox.setRange(-180.0, 180.0); self.center_pan_spinbox.setDecimals(1); self.center_pan_spinbox.setSuffix(" °")
-        circle_layout.addRow("Pan Center:", self.center_pan_spinbox)
-        self.center_tilt_spinbox = QDoubleSpinBox(); self.center_tilt_spinbox.setRange(-180.0, 180.0); self.center_tilt_spinbox.setDecimals(1); self.center_tilt_spinbox.setSuffix(" °")
-        circle_layout.addRow("Tilt Center:", self.center_tilt_spinbox)
-        self.phase_spinbox_circle = QDoubleSpinBox(); self.phase_spinbox_circle.setRange(0, 359.9); self.phase_spinbox_circle.setDecimals(1); self.phase_spinbox_circle.setSuffix(" °")
-        circle_layout.addRow("Start Phase:", self.phase_spinbox_circle)
-        self.group_mode_combo_circle = QComboBox(); self.group_mode_combo_circle.addItem("All Same Phase", "all_same_phase"); self.group_mode_combo_circle.addItem("Spread Phase Evenly", "spread_phase")
-        circle_layout.addRow("Group Mode:", self.group_mode_combo_circle)
-        layout.addWidget(self.circle_group)
-
-        self.u_shape_group = QGroupBox("U-Shape Config")
-        self.u_shape_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
-        u_shape_layout = QFormLayout(self.u_shape_group)
-        u_shape_layout.setContentsMargins(6, 8, 6, 6)
-        u_shape_layout.setSpacing(7)
-        self.speed_spinbox_u_shape = QDoubleSpinBox(); self.speed_spinbox_u_shape.setRange(0.01, 10.0); self.speed_spinbox_u_shape.setDecimals(2); self.speed_spinbox_u_shape.setSuffix(" Hz")
-        u_shape_layout.addRow("Speed:", self.speed_spinbox_u_shape)
-        self.width_spinbox_u_shape = QDoubleSpinBox(); self.width_spinbox_u_shape.setRange(0.1, 360.0); self.width_spinbox_u_shape.setDecimals(1); self.width_spinbox_u_shape.setSuffix(" °")
-        u_shape_layout.addRow("Width (Pan):", self.width_spinbox_u_shape)
-        self.height_spinbox_u_shape = QDoubleSpinBox(); self.height_spinbox_u_shape.setRange(0.1, 180.0); self.height_spinbox_u_shape.setDecimals(1); self.height_spinbox_u_shape.setSuffix(" °")
-        u_shape_layout.addRow("Height (Tilt):", self.height_spinbox_u_shape)
-        self.orientation_combo_u_shape = QComboBox(); self.orientation_combo_u_shape.addItems(["Up", "Down", "Left", "Right"])
-        u_shape_layout.addRow("Orientation:", self.orientation_combo_u_shape)
-        layout.addWidget(self.u_shape_group)
-
-        self.figure_8_group = QGroupBox("Figure 8 Config")
-        self.figure_8_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
-        figure_8_layout = QFormLayout(self.figure_8_group)
-        figure_8_layout.setContentsMargins(6, 8, 6, 6)
-        figure_8_layout.setSpacing(7)
-        self.speed_spinbox_figure_8 = QDoubleSpinBox(); self.speed_spinbox_figure_8.setRange(0.01, 10.0); self.speed_spinbox_figure_8.setDecimals(2); self.speed_spinbox_figure_8.setSuffix(" Hz")
-        figure_8_layout.addRow("Speed:", self.speed_spinbox_figure_8)
-        self.width_spinbox_figure_8 = QDoubleSpinBox(); self.width_spinbox_figure_8.setRange(0.1, 360.0); self.width_spinbox_figure_8.setDecimals(1); self.width_spinbox_figure_8.setSuffix(" °")
-        figure_8_layout.addRow("Width (Pan):", self.width_spinbox_figure_8)
-        self.height_spinbox_figure_8 = QDoubleSpinBox(); self.height_spinbox_figure_8.setRange(0.1, 180.0); self.height_spinbox_figure_8.setDecimals(1); self.height_spinbox_figure_8.setSuffix(" °")
-        figure_8_layout.addRow("Height (Tilt):", self.height_spinbox_figure_8)
-        layout.addWidget(self.figure_8_group)
-
-        self.bally_group = QGroupBox("Bally (Fan) Config")
-        self.bally_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
-        bally_layout = QFormLayout(self.bally_group)
-        bally_layout.setContentsMargins(6, 8, 6, 6); bally_layout.setSpacing(7)
-        self.speed_spinbox_bally = QDoubleSpinBox(); self.speed_spinbox_bally.setRange(0.1, 10.0); self.speed_spinbox_bally.setDecimals(2); self.speed_spinbox_bally.setSuffix(" Hz")
-        bally_layout.addRow("Speed:", self.speed_spinbox_bally)
-        self.width_spinbox_bally = QDoubleSpinBox(); self.width_spinbox_bally.setRange(0.1, 360.0); self.width_spinbox_bally.setDecimals(1); self.width_spinbox_bally.setSuffix(" °")
-        bally_layout.addRow("Width (Pan):", self.width_spinbox_bally)
-        layout.addWidget(self.bally_group)
-
-        self.stagger_group = QGroupBox("Stagger (Dimmer) Config")
-        self.stagger_group.setStyleSheet("QGroupBox { margin-top: 6px; }")
-        stagger_layout = QFormLayout(self.stagger_group)
-        stagger_layout.setContentsMargins(6, 8, 6, 6); stagger_layout.setSpacing(7)
-        self.rate_spinbox_stagger = QDoubleSpinBox(); self.rate_spinbox_stagger.setRange(0.1, 50.0); self.rate_spinbox_stagger.setDecimals(1); self.rate_spinbox_stagger.setSuffix(" Hz")
-        stagger_layout.addRow("Rate:", self.rate_spinbox_stagger)
-        layout.addWidget(self.stagger_group)
+        target_combo = self.dynamic_widgets.get('target_parameter')
+        if isinstance(target_combo, QComboBox):
+            return target_combo.currentData()
         
-        self.update_specific_config_fields_visibility()
-        self._on_wing_style_changed()
+        return None
 
-    def _on_wing_style_changed(self):
-        is_asym = (self.wing_style_combo_sine.currentData() == "asymmetrical_2_wings")
-        self.wing_center_percent_label.setVisible(is_asym)
-        self.wing_center_percent_spinbox.setVisible(is_asym)
+    def _clear_dynamic_form(self):
+        self.dynamic_widgets.clear()
+        while self.dynamic_form_layout.count():
+            item = self.dynamic_form_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout(): # Clear sub-layouts if any
+                while item.layout().count():
+                    child = item.layout().takeAt(0)
+                    if child.widget():
+                        child.widget().deleteLater()
 
-    def _update_sine_wave_spinbox_contexts_for_this_effect(self):
-        if self.effect_type_combo.currentData() != "sine_wave": return
-        target_param = self.target_param_combo.currentData()
-        size_spin, center_spin = self.size_spinbox_sine, self.center_spinbox_sine
-        size_spin.blockSignals(True); center_spin.blockSignals(True)
-        if target_param == "brightness": size_spin.setRange(0, 100); size_spin.setSuffix(" %"); size_spin.setDecimals(0); center_spin.setRange(0, 100); center_spin.setSuffix(" %"); center_spin.setDecimals(0)
-        elif target_param == "zoom": size_spin.setRange(0.1, 85.0); size_spin.setSuffix(" °"); size_spin.setDecimals(1); center_spin.setRange(5.0, 90.0); center_spin.setSuffix(" °"); center_spin.setDecimals(1)
-        elif target_param == "focus": size_spin.setRange(0, 100); size_spin.setSuffix(" %"); size_spin.setDecimals(1); center_spin.setRange(0, 100); center_spin.setSuffix(" %"); center_spin.setDecimals(1)
-        elif target_param in ["rotation_x", "rotation_y"]: size_spin.setRange(0.1, 180.0); size_spin.setSuffix(" °"); size_spin.setDecimals(1); center_spin.setRange(-180.0, 180.0); center_spin.setSuffix(" °"); center_spin.setDecimals(1)
-        else: size_spin.setRange(0.1, 360.0); size_spin.setSuffix(" units"); size_spin.setDecimals(1); center_spin.setRange(-360.0, 360.0); center_spin.setSuffix(" units"); center_spin.setDecimals(1)
-        size_spin.setValue(max(size_spin.minimum(), min(size_spin.maximum(), size_spin.value())))
-        center_spin.setValue(max(center_spin.minimum(), min(center_spin.maximum(), center_spin.value())))
-        size_spin.blockSignals(False); center_spin.blockSignals(False)
-
-    def update_specific_config_fields_visibility(self):
-        effect_type = self.effect_type_combo.currentData()
-        is_sine = effect_type == "sine_wave"
-        is_pan_tilt_shape = effect_type in ["circle", "u_shape", "figure_8", "bally"]
-        is_dimmer_shape = effect_type == "stagger"
-
-        # Hide all groups first
-        self.sine_wave_group.setVisible(False)
-        self.circle_group.setVisible(False)
-        self.u_shape_group.setVisible(False)
-        self.figure_8_group.setVisible(False)
-        self.bally_group.setVisible(False)
-        self.stagger_group.setVisible(False)
-
-        # Show the relevant group
-        if is_sine: self.sine_wave_group.setVisible(True)
-        elif effect_type == "circle": self.circle_group.setVisible(True)
-        elif effect_type == "u_shape": self.u_shape_group.setVisible(True)
-        elif effect_type == "figure_8": self.figure_8_group.setVisible(True)
-        elif effect_type == "bally": self.bally_group.setVisible(True)
-        elif is_dimmer_shape: self.stagger_group.setVisible(True)
+    def _rebuild_form_for_effect_type(self):
+        self._clear_dynamic_form()
         
-        self.target_param_combo.setEnabled(is_sine)
-        self.layout().labelForField(self.target_param_combo).setVisible(is_sine)
+        effect_key = self.effect_type_combo.currentData()
+        schema = self.EFFECT_SCHEMAS.get(effect_key, {})
         
-        if is_sine:
-            self._update_sine_wave_spinbox_contexts_for_this_effect()
-            self._on_wing_style_changed()
+        params = schema.get('params', [])
+        
+        # Add target parameter combo if applicable
+        if "targets" in schema:
+            target_combo = QComboBox()
+            param_map = {"rotation_y": "Pan", "rotation_x": "Tilt", "brightness": "Dimmer", "zoom": "Zoom", "focus": "Focus"}
+            for key in schema["targets"]:
+                target_combo.addItem(param_map.get(key, key.capitalize()), key)
+            self.dynamic_widgets['target_parameter'] = target_combo
+            self.dynamic_form_layout.addRow("Target Parameter:", target_combo)
+            target_combo.currentTextChanged.connect(self._update_sine_wave_spinbox_contexts)
 
-    def load_effect_config(self, effect_config_data: dict | None):
-        if not effect_config_data: 
-            self.effect_type_combo.setCurrentIndex(0) 
-            self.target_param_combo.setCurrentIndex(0) 
-            self.speed_spinbox_sine.setValue(0.2); self.size_spinbox_sine.setValue(45.0); self.center_spinbox_sine.setValue(0.0); self.phase_spinbox_sine.setValue(0.0); 
-            self.direction_combo_sine.setCurrentText("Forward") 
-            self.group_mode_combo_sine.setCurrentIndex(0)
-            self.wing_style_combo_sine.setCurrentText("None") 
-            self.wing_center_percent_spinbox.setValue(50.0)
-
-            self.speed_spinbox_circle.setValue(0.2); self.radius_pan_spinbox.setValue(45.0); self.radius_tilt_spinbox.setValue(30.0); self.center_pan_spinbox.setValue(0.0); self.center_tilt_spinbox.setValue(0.0); self.phase_spinbox_circle.setValue(0.0); self.group_mode_combo_circle.setCurrentIndex(0)
+        # Add other dynamic parameters
+        for param_def in params:
+            widget_class = param_def['widget']
+            widget_instance = widget_class()
+            props = param_def.get('props', {})
             
-            self.speed_spinbox_u_shape.setValue(0.5); self.width_spinbox_u_shape.setValue(90.0); self.height_spinbox_u_shape.setValue(45.0); self.orientation_combo_u_shape.setCurrentText("Up")
-            self.speed_spinbox_figure_8.setValue(0.5); self.width_spinbox_figure_8.setValue(90.0); self.height_spinbox_figure_8.setValue(45.0)
-            self.speed_spinbox_bally.setValue(1.0); self.width_spinbox_bally.setValue(90.0)
-            self.rate_spinbox_stagger.setValue(10.0)
+            # Apply properties
+            if 'range' in props: widget_instance.setRange(*props['range'])
+            if 'decimals' in props: widget_instance.setDecimals(props['decimals'])
+            if 'suffix' in props: widget_instance.setSuffix(props['suffix'])
+            if 'items' in props:
+                if isinstance(props['items'], dict):
+                    for text, data in props['items'].items():
+                        widget_instance.addItem(text, data)
+                else:
+                    widget_instance.addItems(props['items'])
+            
+            # Special handling for conditional visibility
+            if 'condition' in param_def:
+                # Need to find the widget this one depends on
+                dependent_on_key = 'wing_style' # Hardcoded for now, could be generalized
+                master_widget = self.dynamic_widgets.get(dependent_on_key)
+                if master_widget:
+                    def update_visibility(index, cond=param_def['condition'], slave=widget_instance):
+                        cfg = {dependent_on_key: master_widget.currentData()}
+                        slave.setVisible(cond(cfg))
+                        self.dynamic_form_layout.labelForField(slave).setVisible(cond(cfg))
+                    master_widget.currentIndexChanged.connect(update_visibility)
 
-            self.update_specific_config_fields_visibility()
-            if self.effect_type_combo.currentData() == "sine_wave": self._update_sine_wave_spinbox_contexts_for_this_effect()
+            self.dynamic_widgets[param_def['key']] = widget_instance
+            self.dynamic_form_layout.addRow(param_def['label'] + ":", widget_instance)
+        
+        self.effect_type_changed.emit(effect_key)
+        self._update_sine_wave_spinbox_contexts() # Initial context update
+        self._update_conditional_visbility()
+
+    def _update_conditional_visbility(self):
+        """Manually trigger visibility checks after form rebuild."""
+        schema = self.EFFECT_SCHEMAS.get(self.get_current_effect_type(), {})
+        params = schema.get('params', [])
+        current_config = self.get_config_from_form()
+        
+        for param_def in params:
+            if 'condition' in param_def:
+                widget = self.dynamic_widgets.get(param_def['key'])
+                if widget:
+                    is_visible = param_def['condition'](current_config)
+                    widget.setVisible(is_visible)
+                    self.dynamic_form_layout.labelForField(widget).setVisible(is_visible)
+
+
+    def _update_sine_wave_spinbox_contexts(self):
+        """Adjusts ranges/suffixes for sine wave size/center based on target."""
+        if self.get_current_effect_type() != 'sine_wave':
+            return
+            
+        target_param_combo = self.dynamic_widgets.get('target_parameter')
+        size_spin = self.dynamic_widgets.get('size')
+        center_spin = self.dynamic_widgets.get('center')
+        if not target_param_combo or not size_spin or not center_spin:
             return
 
-        effect_type_from_data = effect_config_data.get('effect_type', 'sine_wave')
-        idx = self.effect_type_combo.findData(effect_type_from_data); self.effect_type_combo.setCurrentIndex(idx if idx != -1 else 0)
+        target_param = target_param_combo.currentData()
         
-        if effect_type_from_data == "sine_wave": 
-            idx_param = self.target_param_combo.findData(effect_config_data.get('target_parameter', 'rotation_y'))
-            self.target_param_combo.setCurrentIndex(idx_param if idx_param != -1 else 0)
+        # Define contexts
+        contexts = {
+            "brightness": {'range': (0, 100), 'suffix': ' %', 'decimals': 0},
+            "zoom": {'range': (0.1, 85.0), 'suffix': ' °', 'decimals': 1},
+            "focus": {'range': (0, 100), 'suffix': ' %', 'decimals': 1},
+            "rotation_x": {'range': (0.1, 180.0), 'suffix': ' °', 'decimals': 1},
+            "rotation_y": {'range': (0.1, 180.0), 'suffix': ' °', 'decimals': 1},
+        }
+        center_contexts = {
+             "rotation_x": {'range': (-180.0, 180.0), 'suffix': ' °', 'decimals': 1},
+             "rotation_y": {'range': (-180.0, 180.0), 'suffix': ' °', 'decimals': 1},
+        }
         
-        self.update_specific_config_fields_visibility() 
+        context = contexts.get(target_param, {'range': (0.1, 360.0), 'suffix': ' units', 'decimals': 1})
+        center_context = center_contexts.get(target_param, context) # Default to size context for center
+
+        # Apply to Size spinbox
+        size_spin.blockSignals(True)
+        size_spin.setRange(*context['range'])
+        size_spin.setSuffix(context['suffix'])
+        size_spin.setDecimals(context['decimals'])
+        size_spin.setValue(max(size_spin.minimum(), min(size_spin.maximum(), size_spin.value())))
+        size_spin.blockSignals(False)
+
+        # Apply to Center spinbox
+        center_spin.blockSignals(True)
+        center_spin.setRange(*center_context['range'])
+        center_spin.setSuffix(center_context['suffix'])
+        center_spin.setDecimals(center_context['decimals'])
+        center_spin.setValue(max(center_spin.minimum(), min(center_spin.maximum(), center_spin.value())))
+        center_spin.blockSignals(False)
+
+    def load_effect_config(self, effect_config: dict | None):
+        if not effect_config:
+            effect_config = {}
+
+        effect_key = effect_config.get('effect_type', self.effect_type_combo.currentData())
+        idx = self.effect_type_combo.findData(effect_key)
+        self.effect_type_combo.setCurrentIndex(idx if idx != -1 else 0)
         
-        config_params = effect_config_data.get('config', {})
-        self.speed_spinbox_sine.setValue(config_params.get('speed_hz', 0.2))
-        self.size_spinbox_sine.setValue(config_params.get('size', 45.0))
-        self.center_spinbox_sine.setValue(config_params.get('center', 0.0))
-        self.phase_spinbox_sine.setValue(config_params.get('phase_degrees', 0.0))
-        self.direction_combo_sine.setCurrentText(config_params.get('direction', "Forward")) 
-        group_idx_s = self.group_mode_combo_sine.findData(config_params.get('group_mode', "all_same_phase")); self.group_mode_combo_sine.setCurrentIndex(group_idx_s if group_idx_s != -1 else 0)
-        wing_style_data = config_params.get('wing_style', "none")
-        wing_idx_s = self.wing_style_combo_sine.findData(wing_style_data)
-        if wing_idx_s == -1: wing_idx_s = self.wing_style_combo_sine.findText(wing_style_data.replace("_", " ").title(), Qt.MatchFlag.MatchFixedString) # try display name
-        self.wing_style_combo_sine.setCurrentIndex(wing_idx_s if wing_idx_s != -1 else 0)
-        self.wing_center_percent_spinbox.setValue(config_params.get('wing_center_percent', 50.0))
+        # Ensure form is built for this effect type
+        if self.get_current_effect_type() != effect_key:
+             # This will trigger a rebuild if necessary
+             self.effect_type_combo.setCurrentIndex(idx if idx != -1 else 0)
+        
+        schema = self.EFFECT_SCHEMAS.get(effect_key, {})
+        config_data = effect_config.get('config', {})
 
-        self.speed_spinbox_circle.setValue(config_params.get('speed_hz', 0.2)) 
-        self.radius_pan_spinbox.setValue(config_params.get('radius_pan', 45.0))
-        self.radius_tilt_spinbox.setValue(config_params.get('radius_tilt', 30.0))
-        self.center_pan_spinbox.setValue(config_params.get('center_pan', 0.0))
-        self.center_tilt_spinbox.setValue(config_params.get('center_tilt', 0.0))
-        self.phase_spinbox_circle.setValue(config_params.get('phase_degrees', 0.0)) 
-        group_idx_c = self.group_mode_combo_circle.findData(config_params.get('group_mode', "all_same_phase")); self.group_mode_combo_circle.setCurrentIndex(group_idx_c if group_idx_c != -1 else 0)
+        # Load target parameter
+        target_param_combo = self.dynamic_widgets.get('target_parameter')
+        if isinstance(target_param_combo, QComboBox):
+            target_val = effect_config.get('target_parameter')
+            if target_val:
+                idx = target_param_combo.findData(target_val)
+                if idx != -1: target_param_combo.setCurrentIndex(idx)
 
-        self.speed_spinbox_u_shape.setValue(config_params.get('speed_hz', 0.5))
-        self.width_spinbox_u_shape.setValue(config_params.get('width', 90.0))
-        self.height_spinbox_u_shape.setValue(config_params.get('height', 45.0))
-        self.orientation_combo_u_shape.setCurrentText(config_params.get('orientation', 'Up'))
+        # Load dynamic params
+        for param_def in schema.get('params', []):
+            key = param_def['key']
+            widget = self.dynamic_widgets.get(key)
+            if not widget: continue
+            
+            value = config_data.get(key, param_def.get('default'))
+            if value is None: continue
 
-        self.speed_spinbox_figure_8.setValue(config_params.get('speed_hz', 0.5))
-        self.width_spinbox_figure_8.setValue(config_params.get('width', 90.0))
-        self.height_spinbox_figure_8.setValue(config_params.get('height', 45.0))
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                widget.setValue(value)
+            elif isinstance(widget, QComboBox):
+                idx = widget.findData(value)
+                if idx == -1: idx = widget.findText(value) # Fallback to text match
+                if idx != -1: widget.setCurrentIndex(idx)
+        
+        self._update_sine_wave_spinbox_contexts()
+        self._update_conditional_visbility()
 
-        self.speed_spinbox_bally.setValue(config_params.get('speed_hz', 1.0))
-        self.width_spinbox_bally.setValue(config_params.get('width', 90.0))
-
-        self.rate_spinbox_stagger.setValue(config_params.get('rate_hz', 10.0))
-
-
-        if effect_type_from_data == "sine_wave": self._update_sine_wave_spinbox_contexts_for_this_effect()
+    def get_config_from_form(self) -> dict:
+        """Helper to get current config values from the dynamic form."""
+        config = {}
+        for key, widget in self.dynamic_widgets.items():
+            if not widget.isVisible(): continue
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                config[key] = widget.value()
+            elif isinstance(widget, QComboBox):
+                if widget.currentData() is not None:
+                    config[key] = widget.currentData()
+                else:
+                    config[key] = widget.currentText()
+        return config
 
     def get_effect_config_data(self) -> dict:
-        effect_conf = {}
-        effect_type = self.effect_type_combo.currentData()
-        target_param_val = ""
-        
-        if effect_type == "sine_wave":
-            effect_conf = { 
-                "speed_hz": self.speed_spinbox_sine.value(), 
-                "size": self.size_spinbox_sine.value(), 
-                "center": self.center_spinbox_sine.value(), 
-                "phase_degrees": self.phase_spinbox_sine.value(), 
-                "direction": self.direction_combo_sine.currentText(), 
-                "group_mode": self.group_mode_combo_sine.currentData(),
-                "wing_style": self.wing_style_combo_sine.currentData() 
-            }
-            if self.wing_style_combo_sine.currentData() == "asymmetrical_2_wings":
-                effect_conf["wing_center_percent"] = self.wing_center_percent_spinbox.value()
-            target_param_val = self.target_param_combo.currentData()
-        elif effect_type == "circle":
-            effect_conf = { 
-                "speed_hz": self.speed_spinbox_circle.value(), 
-                "radius_pan": self.radius_pan_spinbox.value(), 
-                "radius_tilt": self.radius_tilt_spinbox.value(), 
-                "center_pan": self.center_pan_spinbox.value(), 
-                "center_tilt": self.center_tilt_spinbox.value(), 
-                "phase_degrees": self.phase_spinbox_circle.value(), 
-                "group_mode": self.group_mode_combo_circle.currentData()
-            }
-            target_param_val = "pan_tilt_circle"
-        elif effect_type == "u_shape":
-            effect_conf = {
-                "speed_hz": self.speed_spinbox_u_shape.value(),
-                "width": self.width_spinbox_u_shape.value(),
-                "height": self.height_spinbox_u_shape.value(),
-                "orientation": self.orientation_combo_u_shape.currentText()
-            }
-            target_param_val = "pan_tilt_u_shape"
-        elif effect_type == "figure_8":
-            effect_conf = {
-                "speed_hz": self.speed_spinbox_figure_8.value(),
-                "width": self.width_spinbox_figure_8.value(),
-                "height": self.height_spinbox_figure_8.value()
-            }
-            target_param_val = "pan_tilt_figure_8"
-        elif effect_type == "bally":
-            effect_conf = {
-                "speed_hz": self.speed_spinbox_bally.value(),
-                "width": self.width_spinbox_bally.value()
-            }
-            target_param_val = "pan_tilt_bally"
-        elif effect_type == "stagger":
-            effect_conf = {
-                "rate_hz": self.rate_spinbox_stagger.value()
-            }
-            target_param_val = "dimmer_stagger"
+        effect_key = self.get_current_effect_type()
         
         return {
-            "effect_type": effect_type,
-            "target_parameter": target_param_val,
-            "config": effect_conf
+            "effect_type": effect_key,
+            "target_parameter": self.get_current_target_parameter(),
+            "config": self.get_config_from_form()
         }
 
 
@@ -348,7 +325,8 @@ class LoopPaletteEditFormWidget(QWidget):
         primary_effect_layout = QVBoxLayout(self.primary_effect_group)
         primary_effect_layout.setContentsMargins(8,10,8,8) 
         primary_effect_layout.setSpacing(6)
-        self.primary_effect_config_widget = LoopPaletteEffectConfigWidget(1, self)
+        self.primary_effect_config_widget = LoopPaletteEffectConfigWidget(self)
+        self.primary_effect_config_widget.effect_type_changed.connect(self._update_secondary_effect_options)
         primary_effect_layout.addWidget(self.primary_effect_config_widget)
         main_layout.addWidget(self.primary_effect_group)
 
@@ -363,24 +341,50 @@ class LoopPaletteEditFormWidget(QWidget):
         self.enable_secondary_effect_checkbox.toggled.connect(self._on_secondary_effect_toggled)
         secondary_effect_main_layout.addWidget(self.enable_secondary_effect_checkbox)
         
-        self.secondary_effect_config_widget = LoopPaletteEffectConfigWidget(2, self, is_secondary=True)
+        self.secondary_effect_config_widget = LoopPaletteEffectConfigWidget(self)
         secondary_effect_main_layout.addWidget(self.secondary_effect_config_widget)
         
         main_layout.addWidget(self.secondary_effect_main_group)
-        self.secondary_effect_config_widget.setVisible(self.enable_secondary_effect_checkbox.isChecked())
         
         main_layout.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
+        
+        self._on_secondary_effect_toggled(False) # Initial state
+        self._update_secondary_effect_options()
+
+    def _update_secondary_effect_options(self):
+        primary_target = self.primary_effect_config_widget.get_current_target_parameter()
+        is_primary_pan_tilt_shape = "pan_tilt_shape" in str(primary_target)
+        
+        sec_combo = self.secondary_effect_config_widget.effect_type_combo
+        sec_combo.blockSignals(True)
+        for i in range(sec_combo.count()):
+            effect_key = sec_combo.itemData(i)
+            schema = LoopPaletteEffectConfigWidget.EFFECT_SCHEMAS.get(effect_key, {})
+            is_secondary_pan_tilt_shape = "pan_tilt_shape" in str(schema.get("implicit_target"))
+            
+            # Disable secondary P/T shapes if primary is already a P/T shape
+            is_disabled = is_primary_pan_tilt_shape and is_secondary_pan_tilt_shape
+            
+            item = sec_combo.model().item(i)
+            if item:
+                flags = item.flags()
+                if is_disabled:
+                    flags &= ~Qt.ItemFlag.ItemIsEnabled
+                else:
+                    flags |= Qt.ItemFlag.ItemIsEnabled
+                item.setFlags(flags)
+
+        # If current secondary selection is now disabled, reset it
+        if not sec_combo.model().item(sec_combo.currentIndex()).isEnabled():
+            sec_combo.setCurrentIndex(0)
+            
+        sec_combo.blockSignals(False)
 
 
     def _on_secondary_effect_toggled(self, checked: bool):
         self.secondary_effect_config_widget.setVisible(checked)
 
-
     def load_data(self, palette_data: dict | None):
-        self.primary_effect_config_widget.load_effect_config(None) 
-        self.enable_secondary_effect_checkbox.setChecked(False) 
-        self.secondary_effect_config_widget.load_effect_config(None) 
-
         if palette_data:
             self.current_palette_id = palette_data.get('id')
             self.name_edit.setText(palette_data.get('name', 'New Loop'))
@@ -388,38 +392,36 @@ class LoopPaletteEditFormWidget(QWidget):
             config_json_str = palette_data.get('config_json', '[]') 
             try:
                 effect_configs_list = json.loads(config_json_str)
-                if not isinstance(effect_configs_list, list): 
-                    if isinstance(effect_configs_list, dict): 
-                        old_effect_type = palette_data.get('effect_type', 'sine_wave') 
-                        old_target_param = palette_data.get('target_parameter', 'rotation_y')
-                        effect_configs_list = [{
-                            "effect_type": old_effect_type,
-                            "target_parameter": old_target_param,
-                            "config": effect_configs_list 
-                        }]
-                    else:
-                        effect_configs_list = []
             except json.JSONDecodeError:
-                effect_configs_list = [] 
-            
-            if len(effect_configs_list) > 0:
+                effect_configs_list = []
+
+            # Load primary effect
+            if len(effect_configs_list) > 0 and isinstance(effect_configs_list[0], dict):
                 self.primary_effect_config_widget.load_effect_config(effect_configs_list[0])
-            
-            if len(effect_configs_list) > 1:
-                self.enable_secondary_effect_checkbox.setChecked(True) 
+            else:
+                self.primary_effect_config_widget.load_effect_config(None)
+
+            # Load secondary effect
+            if len(effect_configs_list) > 1 and isinstance(effect_configs_list[1], dict):
+                self.enable_secondary_effect_checkbox.setChecked(True)
                 self.secondary_effect_config_widget.load_effect_config(effect_configs_list[1])
             else:
                 self.enable_secondary_effect_checkbox.setChecked(False)
+                self.secondary_effect_config_widget.load_effect_config(None)
 
             self.name_edit.setFocus()
+            self.setEnabled(True)
         else: 
             self.current_palette_id = None
             self.name_edit.setText("New Loop")
+            self.primary_effect_config_widget.load_effect_config(None)
+            self.enable_secondary_effect_checkbox.setChecked(False)
+            self.secondary_effect_config_widget.load_effect_config(None)
             self.name_edit.selectAll()
             self.name_edit.setFocus()
+            self.setEnabled(False)
         
-        self.secondary_effect_config_widget.setVisible(self.enable_secondary_effect_checkbox.isChecked())
-
+        self._on_secondary_effect_toggled(self.enable_secondary_effect_checkbox.isChecked())
 
     def get_data(self) -> dict | None:
         name = self.name_edit.text().strip()
@@ -430,103 +432,69 @@ class LoopPaletteEditFormWidget(QWidget):
         effects_list_for_json = []
         
         primary_effect_data = self.primary_effect_config_widget.get_effect_config_data()
-        if primary_effect_data: 
-            effects_list_for_json.append(primary_effect_data)
+        effects_list_for_json.append(primary_effect_data)
 
         if self.enable_secondary_effect_checkbox.isChecked(): 
             secondary_effect_data = self.secondary_effect_config_widget.get_effect_config_data()
-            if secondary_effect_data:
-                primary_target = primary_effect_data.get("target_parameter", "")
-                secondary_target = secondary_effect_data.get("target_parameter", "")
+            
+            primary_target = primary_effect_data.get("target_parameter")
+            secondary_target = secondary_effect_data.get("target_parameter")
 
-                is_primary_pan_tilt = "pan_tilt" in primary_target
-                is_secondary_pan_tilt = "pan_tilt" in secondary_target
-                
-                # Cannot have two pan/tilt shape effects
-                if is_primary_pan_tilt and is_secondary_pan_tilt:
-                    QMessageBox.warning(self, "Configuration Error", "Cannot have two Pan/Tilt shape effects in one palette.")
-                    return None
-                
-                # Cannot have Sine on Pan or Tilt if a shape effect is already active
-                if is_primary_pan_tilt and secondary_target in ["rotation_x", "rotation_y"]:
-                     QMessageBox.warning(self, "Configuration Error", f"Cannot have a Sine wave on '{secondary_target}' when the primary effect is a Pan/Tilt shape.")
-                     return None
-                
-                # Vice-versa
-                if is_secondary_pan_tilt and primary_target in ["rotation_x", "rotation_y"]:
-                     QMessageBox.warning(self, "Configuration Error", f"Cannot have a Sine wave on '{primary_target}' when the secondary effect is a Pan/Tilt shape.")
-                     return None
+            if primary_target and secondary_target and primary_target == secondary_target:
+                QMessageBox.warning(self, "Configuration Error", "Secondary effect cannot target the same parameter as the primary effect.")
+                return None
 
-                # Cannot have two sine waves on the same parameter
-                if not is_primary_pan_tilt and not is_secondary_pan_tilt and primary_target == secondary_target:
-                    QMessageBox.warning(self, "Configuration Error", "Secondary effect cannot target the same parameter as the primary effect.")
-                    return None
-
-                effects_list_for_json.append(secondary_effect_data)
+            effects_list_for_json.append(secondary_effect_data)
         
-        data = {
-            "name": name,
-            "config_json": json.dumps(effects_list_for_json)
-        }
+        data = {"name": name, "config_json": json.dumps(effects_list_for_json)}
         if self.current_palette_id is not None:
             data['id'] = self.current_palette_id
         return data
 
-class LoopPaletteManagementDialog(QDialog):
-    palettes_changed = pyqtSignal()
+class LoopPalettesTab(QWidget):
+    loop_palettes_changed = pyqtSignal() 
 
-    def __init__(self, main_window, parent=None):
-        super().__init__(parent)
+    def __init__(self, main_window):
+        super().__init__()
         self.main_window = main_window
-        self.setWindowTitle("Manage Loop Palettes")
-        self.setMinimumSize(750, 600) 
-
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(10) 
+        self.init_ui()
+        self.load_palettes_into_list()
         
+    def init_ui(self):
+        main_layout = QVBoxLayout(self)
+        
+        controls_layout = QHBoxLayout()
+        self.add_new_button = QPushButton("Add New")
+        self.add_new_button.clicked.connect(self.prepare_new_palette_entry)
+        controls_layout.addWidget(self.add_new_button)
+        self.delete_button = QPushButton("Delete Selected")
+        self.delete_button.setObjectName("DestructiveButton")
+        self.delete_button.clicked.connect(self.delete_selected_palette)
+        controls_layout.addWidget(self.delete_button)
+        self.save_button = QPushButton("Save Changes")
+        self.save_button.setObjectName("PrimaryButton")
+        self.save_button.clicked.connect(self.save_current_palette_changes)
+        controls_layout.addWidget(self.save_button)
+        controls_layout.addStretch()
+        main_layout.addLayout(controls_layout)
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
         
         list_container = QWidget()
         list_layout = QVBoxLayout(list_container)
-        list_layout.setSpacing(6)
         list_layout.addWidget(QLabel("Saved Loop Palettes:"))
         self.palettes_list_widget = QListWidget()
         self.palettes_list_widget.itemSelectionChanged.connect(self.on_palette_selected_in_list)
         self.palettes_list_widget.setSortingEnabled(True)
         list_layout.addWidget(self.palettes_list_widget)
-        
-        list_buttons_layout = QHBoxLayout()
-        self.add_new_button = QPushButton("Add New")
-        self.add_new_button.clicked.connect(self.prepare_new_palette_entry)
-        list_buttons_layout.addWidget(self.add_new_button)
-        
-        self.delete_button = QPushButton("Delete Selected")
-        self.delete_button.setObjectName("DestructiveButton")
-        self.delete_button.clicked.connect(self.delete_selected_palette)
-        list_buttons_layout.addWidget(self.delete_button)
-        list_layout.addLayout(list_buttons_layout)
-        
         splitter.addWidget(list_container)
 
         self.edit_form_widget = LoopPaletteEditFormWidget(self.main_window.db_connection, self)
         splitter.addWidget(self.edit_form_widget)
-        
-        splitter.setSizes([280, 470]) 
+
+        splitter.setSizes([280, 470])
         main_layout.addWidget(splitter)
-
-        self.dialog_buttons = QDialogButtonBox()
-        self.save_changes_button = self.dialog_buttons.addButton("Save Changes", QDialogButtonBox.ButtonRole.AcceptRole)
-        self.save_changes_button.clicked.connect(self.save_current_palette_changes)
-        self.dialog_buttons.addButton(QDialogButtonBox.StandardButton.Close)
-        self.dialog_buttons.rejected.connect(self.reject)
-        main_layout.addWidget(self.dialog_buttons)
         
-        self.load_palettes_into_list()
-        if self.palettes_list_widget.count() > 0:
-            self.palettes_list_widget.setCurrentRow(0)
-        else:
-            self.prepare_new_palette_entry() 
-
     def load_palettes_into_list(self):
         current_id_to_reselect = None
         if self.palettes_list_widget.currentItem():
@@ -546,15 +514,13 @@ class LoopPaletteManagementDialog(QDialog):
                     effect_configs_list = json.loads(cfg_json_str) 
                     if isinstance(effect_configs_list, list) and effect_configs_list:
                         primary_eff_data = effect_configs_list[0]
-                        eff_type_disp = primary_eff_data.get('effect_type',"").replace('_',' ').title()
-                        tgt_param_disp = primary_eff_data.get('target_parameter',"").replace('_',' ').title()
-                        if "pan_tilt" in tgt_param_disp.lower(): tgt_param_disp = "Pan/Tilt"
-                        
-                        display_name = f"{name} ({eff_type_disp} on {tgt_param_disp}"
+                        effect_key = primary_eff_data.get("effect_type", "unknown")
+                        schema = LoopPaletteEffectConfigWidget.EFFECT_SCHEMAS.get(effect_key, {})
+                        eff_type_disp = schema.get("label", effect_key.replace('_',' ').title())
+
+                        display_name = f"{name} ({eff_type_disp}"
                         if len(effect_configs_list) > 1: display_name += " + More"
                         display_name += ")"
-                    elif isinstance(effect_configs_list, dict): 
-                        display_name = f"{name} [Old Single Effect Format]"
                 except Exception as e_disp: 
                     print(f"Error generating display name for palette '{name}': {e_disp}")
 
@@ -572,9 +538,8 @@ class LoopPaletteManagementDialog(QDialog):
                 self.palettes_list_widget.setCurrentItem(selected_item_to_restore)
             elif self.palettes_list_widget.count() > 0:
                 self.palettes_list_widget.setCurrentRow(0)
-            
-            self.on_palette_selected_in_list() 
-
+            else:
+                self.on_palette_selected_in_list()
         except Exception as e:
             QMessageBox.critical(self, "DB Error", f"Error loading loop palettes into list: {e}")
 
@@ -582,21 +547,17 @@ class LoopPaletteManagementDialog(QDialog):
         current_item = self.palettes_list_widget.currentItem()
         if current_item:
             palette_data_for_form = current_item.data(Qt.ItemDataRole.UserRole + 1) 
-            self.edit_form_widget.load_data(palette_data_for_form) 
-
-            self.save_changes_button.setText("Save Changes")
-            self.save_changes_button.setEnabled(True)
-            self.delete_button.setEnabled(True)
+            self.edit_form_widget.load_data(palette_data_for_form)
+            self.save_button.setText("Save Changes")
         else:
             self.edit_form_widget.load_data(None) 
-            self.save_changes_button.setText("Create New")
-            self.save_changes_button.setEnabled(True) 
-            self.delete_button.setEnabled(False)
+            self.save_button.setText("Save Changes")
 
     def prepare_new_palette_entry(self):
-        self.palettes_list_widget.setCurrentItem(None) 
-        self.edit_form_widget.load_data(None) 
-        self.save_changes_button.setText("Create")
+        self.palettes_list_widget.clearSelection()
+        self.edit_form_widget.load_data(None)
+        self.edit_form_widget.setEnabled(True)
+        self.save_button.setText("Create New Palette")
 
     def save_current_palette_changes(self):
         data_to_save = self.edit_form_widget.get_data()
@@ -655,7 +616,7 @@ class LoopPaletteManagementDialog(QDialog):
                 return
         
         self.load_palettes_into_list() 
-        self.palettes_changed.emit()
+        self.loop_palettes_changed.emit()
 
     def delete_selected_palette(self):
         current_item = self.palettes_list_widget.currentItem()
@@ -679,32 +640,6 @@ class LoopPaletteManagementDialog(QDialog):
                 if self.palettes_list_widget.count() == 0:
                     self.prepare_new_palette_entry()
                 QMessageBox.information(self, "Deleted", f"Loop Palette '{palette_name}' deleted.")
-                self.palettes_changed.emit()
+                self.loop_palettes_changed.emit()
             except Exception as e:
                 QMessageBox.critical(self, "DB Error", f"Error deleting loop palette: {e}")
-
-class LoopPalettesTab(QWidget):
-    loop_palettes_changed = pyqtSignal() 
-
-    def __init__(self, main_window):
-        super().__init__()
-        self.main_window = main_window
-        self.init_ui()
-
-    def init_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10,10,10,10)
-        
-        manage_button = QPushButton("Manage Loop Palettes...")
-        manage_button.clicked.connect(self.show_manage_dialog)
-        manage_button.setFixedHeight(40)
-        manage_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        main_layout.addWidget(manage_button)
-        
-        main_layout.addStretch() 
-        self.setLayout(main_layout)
-
-    def show_manage_dialog(self):
-        dialog = LoopPaletteManagementDialog(self.main_window, self)
-        dialog.palettes_changed.connect(self.loop_palettes_changed.emit)
-        dialog.exec()

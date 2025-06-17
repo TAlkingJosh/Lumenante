@@ -594,8 +594,8 @@ class Lumenante(QMainWindow):
             cursor.execute("SELECT COUNT(*) FROM fixture_profiles")
             profile_count = cursor.fetchone()[0]
             if profile_count == 0:
-                print("No fixture profiles found. Creating a default Moving Head profile.")
-                default_attributes = [
+                print("No fixture profiles found. Creating default profiles.")
+                default_moving_head = [
                     {"name": "Dimmer", "type": "continuous", "dmx_channel": 1},
                     {"name": "Pan", "type": "continuous", "dmx_channel": 2},
                     {"name": "Tilt", "type": "continuous", "dmx_channel": 3},
@@ -607,9 +607,32 @@ class Lumenante(QMainWindow):
                     {"name": "Gobo_Spin", "type": "continuous", "dmx_channel": 9},
                     {"name": "Strobe", "type": "continuous", "dmx_channel": 10}
                 ]
-                cursor.execute(
+                default_par = [
+                    {"name": "Dimmer", "type": "continuous"},
+                    {"name": "Color_Red", "type": "continuous"},
+                    {"name": "Color_Green", "type": "continuous"},
+                    {"name": "Color_Blue", "type": "continuous"},
+                    {"name": "Zoom", "type": "continuous"}
+                ]
+                default_blinder = [
+                    {"name": "Dimmer", "type": "continuous"},
+                    {"name": "Strobe", "type": "continuous"}
+                ]
+                default_led_bar = [
+                    {"name": "Dimmer", "type": "continuous"},
+                    {"name": "Color_Red", "type": "continuous"},
+                    {"name": "Color_Green", "type": "continuous"},
+                    {"name": "Color_Blue", "type": "continuous"}
+                ]
+                default_profiles = [
+                    ("Moving Head", "Lumenante", json.dumps(default_moving_head)),
+                    ("PAR Can", "Lumenante", json.dumps(default_par)),
+                    ("Blinder", "Lumenante", json.dumps(default_blinder)),
+                    ("LED Bar", "Lumenante", json.dumps(default_led_bar)),
+                ]
+                cursor.executemany(
                     "INSERT INTO fixture_profiles (name, creator, attributes_json) VALUES (?, ?, ?)",
-                    ("Moving Head", "Lumenante", json.dumps(default_attributes))
+                    default_profiles
                 )
 
             # --- Fixture Table Migration ---
@@ -1075,7 +1098,7 @@ class Lumenante(QMainWindow):
                                 "A restart is required for all changes (like tab positions) to take full effect.")
 
     def init_ui(self):
-        self.setWindowTitle("Lumenante V1"); self.setMinimumSize(1200, 720); self.resize(1500, 850)
+        self.setWindowTitle("Lumenante V1.1"); self.setMinimumSize(1200, 720); self.resize(1500, 850)
         script_dir = Path(__file__).resolve().parent
         app_icon_path = script_dir / "app_icon.ico"
         if app_icon_path.exists(): self.setWindowIcon(QIcon(str(app_icon_path)))
@@ -1666,6 +1689,11 @@ class Lumenante(QMainWindow):
         self.fixtures_tab.fixture_added.connect(self.populate_fixture_selector)
         self.fixtures_tab.fixture_deleted.connect(self.populate_fixture_selector)
 
+        # Connect fixture changes to refresh layout lists immediately
+        self.fixtures_tab.fixture_added.connect(lambda data: self.main_tab.refresh_dynamic_content())
+        self.fixtures_tab.fixture_deleted.connect(lambda ids: self.main_tab.refresh_dynamic_content())
+
+
         self.fixtures_tab.fixture_updated.connect(lambda fid, data: self.fixture_groups_tab.refresh_all_data_and_ui())
         self.fixtures_tab.fixture_added.connect(lambda data: self.fixture_groups_tab.refresh_all_data_and_ui())
         self.fixtures_tab.fixture_deleted.connect(self.fixture_groups_tab.refresh_all_data_and_ui)
@@ -1890,9 +1918,9 @@ class Lumenante(QMainWindow):
     def on_fixture_added_from_tab(self, new_fixture_data_with_id: dict):
         self._initialize_live_fixture_states_from_db() # Re-init to include the new fixture
         self.visualization_3d_tab.update_all_fixtures()
-        if self.main_tab.isVisible(): self.main_tab.refresh_dynamic_content()
-        if self.fixture_groups_tab.isVisible(): self.fixture_groups_tab.refresh_all_data_and_ui()
-        if self.timeline_tab.isVisible(): self.timeline_tab.refresh_event_list_and_timeline()
+        self.main_tab.refresh_dynamic_content()
+        self.fixture_groups_tab.refresh_all_data_and_ui()
+        self.timeline_tab.refresh_event_list_and_timeline()
 
         fixture_id = new_fixture_data_with_id.get('id');
         if fixture_id: 
@@ -1904,22 +1932,18 @@ class Lumenante(QMainWindow):
         for fid in deleted_fixture_ids:
             self.live_fixture_states.pop(fid, None)
 
-        if self.fixture_groups_tab.isVisible():
-            self.fixture_groups_tab.refresh_all_data_and_ui()
-        
+        self.fixture_groups_tab.refresh_all_data_and_ui()
         self.visualization_3d_tab.update_all_fixtures()
+        self.timeline_tab.refresh_event_list_and_timeline()
+        self.main_tab.refresh_dynamic_content()
 
-        if self.timeline_tab.isVisible():
-            self.timeline_tab.refresh_event_list_and_timeline()
-        if self.main_tab.isVisible():
-            self.main_tab.refresh_dynamic_content()
-            current_selection = self.main_tab.globally_selected_fixture_ids_for_controls
-            new_selection = [fid for fid in current_selection if fid not in deleted_fixture_ids]
-            if len(new_selection) < len(current_selection):
-                self.main_tab.globally_selected_fixture_ids_for_controls = new_selection
-                self.main_tab.global_fixture_selection_changed.emit(new_selection)
-                if not new_selection:
-                    self.main_tab.update_active_group_selection_display(None)
+        current_selection = self.main_tab.globally_selected_fixture_ids_for_controls
+        new_selection = [fid for fid in current_selection if fid not in deleted_fixture_ids]
+        if len(new_selection) < len(current_selection):
+            self.main_tab.globally_selected_fixture_ids_for_controls = new_selection
+            self.main_tab.global_fixture_selection_changed.emit(new_selection)
+            if not new_selection:
+                self.main_tab.update_active_group_selection_display(None)
 
 
     def on_preset_applied_from_tab(self, preset_number: str, target_type:str = "master", target_id: int | None = None):
@@ -2064,36 +2088,6 @@ class Lumenante(QMainWindow):
         if self.is_live_mode_active():
             selected_ids = self.main_tab.globally_selected_fixture_ids_for_controls
             self._handle_selection_for_roblox(selected_ids)
-
-    def on_main_tab_global_fixture_selection_changed(self, fixture_ids: list[int]):
-        """Handles updates to the main window's header when the global selection changes."""
-        self.update_header_selected_info()
-
-        # Smartly update the quick selector combo boxes to reflect the current selection
-        # without causing a signal loop that clears the selection.
-        is_group_selection = self.main_tab.globally_selected_group_name_for_display is not None
-
-        # Update Group Selector
-        if not is_group_selection:
-            # If the current selection is NOT a group, and the group selector is not already on the placeholder, reset it.
-            if self.group_selector_combo.currentIndex() != 0:
-                self.group_selector_combo.blockSignals(True)
-                self.group_selector_combo.setCurrentIndex(0)
-                self.group_selector_combo.blockSignals(False)
-        
-        # Update Fixture Selector
-        if len(fixture_ids) == 1:
-            idx = self.fixture_selector_combo.findData(fixture_ids[0])
-            if self.fixture_selector_combo.currentIndex() != idx:
-                self.fixture_selector_combo.blockSignals(True)
-                self.fixture_selector_combo.setCurrentIndex(idx if idx != -1 else 0)
-                self.fixture_selector_combo.blockSignals(False)
-        elif self.fixture_selector_combo.currentIndex() != 0:
-            # If it's a multi-fixture selection or no selection, reset the fixture combo to placeholder.
-            self.fixture_selector_combo.blockSignals(True)
-            self.fixture_selector_combo.setCurrentIndex(0)
-            self.fixture_selector_combo.blockSignals(False)
-
 
     def update_header_selected_info(self):
         fixture_ids = self.main_tab.globally_selected_fixture_ids_for_controls
@@ -2340,40 +2334,64 @@ class Lumenante(QMainWindow):
     def _on_roblox_positions_reported(self, positions_data: dict):
         """Slot to handle the position data received from Roblox."""
         updated_count = 0
+        newly_patched_fids = []
         not_found_count = 0
+        auto_patch_enabled = self.settings.value('roblox/auto_patch_enabled', True, type=bool)
+        
+        default_profile_id = None
+        if auto_patch_enabled:
+            try:
+                cursor = self.db_connection.cursor()
+                cursor.execute("SELECT id FROM fixture_profiles WHERE name = 'PAR Can'")
+                result = cursor.fetchone()
+                if result:
+                    default_profile_id = result[0]
+                else: # Fallback to first available profile
+                    cursor.execute("SELECT id FROM fixture_profiles LIMIT 1")
+                    result = cursor.fetchone()
+                    if result: default_profile_id = result[0]
+            except Exception as e:
+                print(f"Could not find a default profile for auto-patching: {e}")
+
         try:
             cursor = self.db_connection.cursor()
             for fid_str, pos_list in positions_data.items():
                 try:
-                    # This is the FID (Fixture ID), not the primary key.
                     fixture_fid = int(fid_str)
                     if isinstance(pos_list, list) and len(pos_list) == 3:
-                        update_data = {
-                            "x_pos": float(pos_list[0]),
-                            "y_pos": float(pos_list[1]),
-                            "z_pos": float(pos_list[2])
-                        }
-                        # Update all sub-fixtures (SFIs) that share the same FID.
-                        cursor.execute("UPDATE fixtures SET x_pos=?, y_pos=?, z_pos=? WHERE fid=?",
-                                       (update_data["x_pos"], update_data["y_pos"], update_data["z_pos"], fixture_fid))
+                        x, y, z = float(pos_list[0]), float(pos_list[1]), float(pos_list[2])
                         
-                        rows_affected = cursor.rowcount
-                        if rows_affected > 0:
-                            updated_count += rows_affected
+                        cursor.execute("SELECT id FROM fixtures WHERE fid = ?", (fixture_fid,))
+                        existing_fixture = cursor.fetchone()
+
+                        if existing_fixture:
+                            cursor.execute("UPDATE fixtures SET x_pos=?, y_pos=?, z_pos=? WHERE fid=?", (x, y, z, fixture_fid))
+                            updated_count += cursor.rowcount
+                        elif auto_patch_enabled and default_profile_id:
+                            cursor.execute("INSERT INTO fixtures (fid, sfi, profile_id, name, x_pos, y_pos, z_pos) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                           (fixture_fid, 1, default_profile_id, f"Roblox Fx {fixture_fid}", x, y, z))
+                            newly_patched_fids.append(fixture_fid)
                         else:
                             not_found_count += 1
                 except (ValueError, TypeError):
                     print(f"Warning: Could not parse fixture ID '{fid_str}' or its position data.")
 
-            if updated_count > 0:
+            if updated_count > 0 or newly_patched_fids:
                 self.db_connection.commit()
-                QMessageBox.information(self, "Import Successful",
-                                        f"Successfully imported and updated positions for {updated_count} fixture instance(s).\n"
-                                        f"{not_found_count} fixture ID(s) reported by Roblox were not found in the patch.")
+                
+                # Build summary message
+                summary_lines = []
+                if updated_count > 0: summary_lines.append(f"Successfully updated positions for {updated_count} fixture instance(s).")
+                if newly_patched_fids: summary_lines.append(f"Auto-patched {len(newly_patched_fids)} new fixture(s): {newly_patched_fids}")
+                if not_found_count > 0: summary_lines.append(f"{not_found_count} fixture ID(s) reported by Roblox were not found in the patch.")
+                QMessageBox.information(self, "Import Successful", "\n".join(summary_lines))
+                
                 # Refresh relevant UI
                 self._initialize_live_fixture_states_from_db()
                 self.fixtures_tab.refresh_fixtures()
                 self.visualization_3d_tab.update_all_fixtures()
+                self.populate_fixture_selector()
+                self.main_tab.refresh_dynamic_content()
             else:
                  QMessageBox.warning(self, "Import Failed",
                                      "No matching fixtures were found to update. "
@@ -2662,7 +2680,7 @@ def main():
     # Set AppUserModelID for Windows Taskbar icon
     if sys.platform == "win32":
         import ctypes
-        myappid = u'lumenante.v1.0.0' # arbitrary string
+        myappid = u'lumenante.v1.1.0' # arbitrary string
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QApplication(sys.argv)

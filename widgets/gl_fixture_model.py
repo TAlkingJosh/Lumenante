@@ -103,7 +103,7 @@ class Fixture3D:
         
         # Draw Base (common to most types)
         glColor3f(0.2, 0.2, 0.22)
-        if GLUT_FUNCTIONS_USABLE:
+        if GLUT_FUNCTIONS_USABLE and "moving head" in self.type:
              glPushMatrix()
              glScalef(1.2, 0.2, 1.2)
              try:
@@ -112,6 +112,8 @@ class Fixture3D:
                  GLUT_FUNCTIONS_USABLE = False
                  self._draw_cube_primitive(fixture_body_size)
              glPopMatrix()
+        elif "moving head" not in self.type:
+            pass # No base for static fixtures
         else:
              self._draw_cube_primitive(fixture_body_size)
 
@@ -126,7 +128,7 @@ class Fixture3D:
 
         try:
             if GLUT_FUNCTIONS_USABLE:
-                if self.type in ["moving head spot", "moving head wash", "moving head beam"]:
+                if "moving head" in self.type:
                     glTranslatef(0, fixture_body_size * 0.5, 0)
                     glutSolidSphere(fixture_body_size, 16, 16)
                 
@@ -136,13 +138,13 @@ class Fixture3D:
                     glutSolidCylinder(fixture_body_size * 0.9, fixture_body_size * 1.6, 16, 8) 
                     glPopMatrix()
 
-                elif self.type in ["strobe", "blinder"]:
+                elif self.type in ["blinder", "led bar"]:
                     glPushMatrix()
                     glScalef(1.8, 1.2, 0.4)
                     glutSolidCube(fixture_body_size)
                     glPopMatrix()
 
-                else: 
+                else: # Generic fallback
                     self._draw_cube_primitive(fixture_body_size * 1.5)
             else: 
                 self._draw_cube_primitive(fixture_body_size * 1.5)
@@ -176,18 +178,23 @@ class Fixture3D:
                     else: slices, stacks = 16, 8
                     
                     # Translate beam forward from head center
-                    glTranslatef(0, 0, fixture_body_size * 0.5)
-
+                    if "moving head" in self.type:
+                        glTranslatef(0, 0, fixture_body_size * 0.5)
+                    else: # Static fixtures shoot straight out
+                        glTranslatef(0, 0, 0)
+                    
                     glutSolidCone(beam_end_radius_at_length, beam_length, slices, stacks)
                 else: 
-                    glTranslatef(0, 0, fixture_body_size * 0.5)
+                    if "moving head" in self.type:
+                        glTranslatef(0, 0, fixture_body_size * 0.5)
                     self._draw_cone_fallback(beam_end_radius_at_length, beam_length)
 
             except Exception as e_glut_beam:
                 if "NULL" not in str(e_glut_beam).upper():
                     print(f"RUNTIME ERROR using GLUT for beam (ID: {self.id}): {e_glut_beam}. Disabling GLUT drawing.")
                 GLUT_FUNCTIONS_USABLE = False
-                glTranslatef(0, 0, fixture_body_size * 0.5)
+                if "moving head" in self.type:
+                    glTranslatef(0, 0, fixture_body_size * 0.5)
                 self._draw_cone_fallback(beam_end_radius_at_length, beam_length)
         
         # Restore matrix state to before head rotations

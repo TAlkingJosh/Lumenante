@@ -17,15 +17,17 @@ from PyQt6.QtGui import (QColor, QPainter, QPainterPath, QPalette, QPen,
 
 # IMPORT FROM THE WIDGETS PACKAGE
 from widgets import (FixtureControlWidget, CustomColorWheelWidget, GradientEditorWidget,
-                     LayoutOverviewWidget, EmbeddedStageViewWidget, EmbeddedTimelineWidget)
+                     LayoutOverviewWidget, EmbeddedStageViewWidget, EmbeddedTimelineWidget,
+                     ProgrammerViewWidget, CueListWidget)
 
 
-# Import for context menu on loop palette buttons
-from tabs.loop_palettes_tab import LoopPaletteManagementDialog
 import sqlite3
 
 # Import for type hinting
 from typing import TYPE_CHECKING, List, Dict, Tuple, Any, Optional, Callable
+
+if TYPE_CHECKING:
+    from ..lumenante_main import Lumenante
 
 class SelectFixtureDialog(QDialog):
     def __init__(self, main_window, parent=None):
@@ -369,6 +371,7 @@ class DefinedArea:
         elif func_type=="Fixture Control":self.display_text=f"FX: {data.get('fixture_name','N/A')[:12]}"
         elif func_type=="Fixture Selector List": self.display_text="Fixture List"
         elif func_type=="Multi-Group Selector List": self.display_text="Group List"
+        elif func_type=="Master Cue List": self.display_text="Cue List"
         elif func_type=="Color Palette":
             palette_kind = data.get('palette_kind', 'Color')
             if palette_kind == "Position":
@@ -392,10 +395,11 @@ class DefinedArea:
         elif func_type=="Embedded Stage View": self.display_text="Stage View"
         elif func_type=="Embedded Timeline": self.display_text="Timeline Controls"
         elif func_type == "Clock Display": self.display_text = "Clock"
+        elif func_type == "Programmer View": self.display_text = "Programmer"
         elif func_type=="None":self.display_text=f"Area {self.id[:4]}"
         else:self.display_text=func_type
 
-    def clear_embedded_widget(self):
+    def clear_embedded_widget(self, main_window: 'Lumenante'):
         if self.embedded_widget:
             if self.function_type == "Color Palette" and isinstance(self.embedded_widget, QFrame):
                 if hasattr(self.embedded_widget, "_palette_button_container"):
@@ -469,7 +473,16 @@ class DefinedArea:
             elif isinstance(self.embedded_widget, ClockWidget):
                 if hasattr(self.embedded_widget, 'timer') and self.embedded_widget.timer.isActive():
                     self.embedded_widget.timer.stop()
-
+            elif isinstance(self.embedded_widget, ProgrammerViewWidget):
+                if hasattr(self.embedded_widget, 'parent_tab') and self.embedded_widget.parent_tab:
+                     try: self.embedded_widget.parent_tab.global_fixture_selection_changed.disconnect(self.embedded_widget.update_view)
+                     except (TypeError, RuntimeError): pass
+                     try: main_window.fixture_data_globally_changed.disconnect(self.embedded_widget.handle_single_fixture_update)
+                     except (TypeError, RuntimeError): pass
+            elif isinstance(self.embedded_widget, CueListWidget):
+                 if hasattr(self.embedded_widget, 'timeline_tab') and self.embedded_widget.timeline_tab:
+                    try: self.embedded_widget.timeline_tab.cues_changed.disconnect(self.embedded_widget.refresh_cues)
+                    except (TypeError, RuntimeError): pass
             
             self.embedded_widget.deleteLater()
             self.embedded_widget=None
@@ -493,7 +506,7 @@ class MainTab(QWidget):
     loop_palette_triggered = pyqtSignal(str, int, bool)
     executor_fader_changed = pyqtSignal(int, int) # NEW: group_id, value
 
-    def __init__(self, main_window):
+    def __init__(self, main_window: 'Lumenante'):
         super().__init__()
         self.main_window = main_window
         self.settings = self.main_window.settings
@@ -539,6 +552,8 @@ class MainTab(QWidget):
         self.interactive_canvas.embedded_list_fixture_selected.connect(self._handle_embedded_list_selection)
         self.interactive_canvas.embedded_multi_group_list_selected.connect(self._handle_embedded_group_list_selection)
         self.global_fixture_selection_changed.connect(self._on_main_tab_global_fixture_selection_changed)
+        self.global_fixture_selection_changed.connect(self.interactive_canvas.update_all_fixture_list_selections)
+
 
     def register_custom_layout_widget(self, name: str, creation_callback: Callable[[QWidget, Dict], QWidget]) -> bool:
         """Allows plugins to register a new type of widget for the layout canvas."""
@@ -586,7 +601,7 @@ class MainTab(QWidget):
         
         # Add built-in types
         standard_types = [ 
-            "None", "Preset Trigger", "Executor Fader", "Executor Button",
+            "None", "Programmer View", "Master Cue List", "Preset Trigger", "Executor Fader", "Executor Button",
             "Fixture Selector List", "Multi-Group Selector List", "Group Selector",
             "Slider Control", "Color Picker", "Color Palette", "Loop Palette", "Gradient Editor",
             "Fixture Control", "Master Intensity", "Toggle Fixture Power", "Flash Fixture",
@@ -892,7 +907,7 @@ class MainTab(QWidget):
 
 
         self.interactive_canvas.update_area_properties_and_widget(area.id, new_func_type, new_data)
-        self.save_defined_areas_to_settings()
+        self.parent_tab.save_defined_areas_to_settings()
         QMessageBox.information(self, "Assignment Saved", f"Area assignment updated to '{new_func_type}'.")
 
     def handle_area_selected_for_panel(self, area: Optional[DefinedArea]):
@@ -1086,9 +1101,9 @@ class MainTab(QWidget):
         This slot is connected to the global_fixture_selection_changed signal.
         It is responsible ONLY for updating widgets within the MainTab itself.
         """
+        self.main_window.update_header_selected_info()
         # Sync any listening widgets within this tab, like sliders and color pickers.
         self._sync_global_controls_to_selected_fixture(fixture_ids)
-        self.main_window.update_header_selected_info()
 
 class InteractiveGridCanvas(QWidget):
     area_selected_for_assignment = pyqtSignal(object)
@@ -1113,6 +1128,8 @@ class InteractiveGridCanvas(QWidget):
     MIN_CELLS_HEIGHT_STAGE_VIEW = 2
     MIN_CELLS_WIDTH_TIMELINE = 3
     MIN_CELLS_HEIGHT_TIMELINE = 1
+    MIN_CELLS_WIDTH_PROGRAMMER = 4 
+    MIN_CELLS_HEIGHT_PROGRAMMER = 2 
 
 
     def __init__(self, parent_tab: 'MainTab', parent=None):
@@ -1212,6 +1229,23 @@ class InteractiveGridCanvas(QWidget):
                     if area_item.input_widget and isinstance(area_item.embedded_widget, QSlider):
                          self._position_slider_and_input_within_container(widget_area_rect_on_canvas, area_item.embedded_widget, area_item.input_widget)
     
+    def update_all_fixture_list_selections(self, selected_ids: list[int]):
+        """A new slot to update all Fixture Selector List widgets on the canvas."""
+        for area in self.defined_areas:
+            if area.function_type == "Fixture Selector List" and isinstance(area.embedded_widget, QListWidget):
+                list_widget = area.embedded_widget
+                list_widget.blockSignals(True)
+                selection_model = list_widget.selectionModel()
+                if selection_model:
+                    new_selection = QItemSelection()
+                    for i in range(list_widget.count()):
+                        item_fid = list_widget.item(i).data(Qt.ItemDataRole.UserRole)
+                        if item_fid in selected_ids:
+                            model_index = list_widget.model().index(i, 0)
+                            new_selection.select(model_index, model_index)
+                    selection_model.select(new_selection, QItemSelectionModel.SelectionFlag.ClearAndSelect | QItemSelectionModel.SelectionFlag.NoUpdate)
+                list_widget.blockSignals(False)
+
     def update_all_embedded_view_selections(self, selected_ids: list[int]):
         for area in self.defined_areas:
             if isinstance(area.embedded_widget, EmbeddedStageViewWidget):
@@ -1320,7 +1354,7 @@ class InteractiveGridCanvas(QWidget):
             
             types_that_manage_their_own_text_or_have_no_text = [
                  "Preset Trigger", "Toggle Fixture Power", "Flash Fixture", "Sequence Go", "Group Selector", "Executor Button",
-                 "Fixture Control", "Loop Palette", "Embedded Timeline", "Executor Fader", "Clock Display" 
+                 "Fixture Control", "Loop Palette", "Embedded Timeline", "Executor Fader", "Clock Display", "Programmer View"
             ]
             if not area_item.label_widget and not area_item.embedded_widget and \
                area_item.function_type not in types_that_manage_their_own_text_or_have_no_text:
@@ -1348,6 +1382,7 @@ class InteractiveGridCanvas(QWidget):
             "Fixture Control":QColor(175,82,222,base_alpha),
             "Fixture Selector List":QColor(90,200,250,base_alpha),
             "Multi-Group Selector List":QColor(90,200,250,base_alpha-10),
+            "Master Cue List":QColor(90,200,250,base_alpha-10),
             "Color Palette":QColor(255,193,7,base_alpha),
             "Loop Palette":QColor(0, 190, 200, base_alpha),
             "Gradient Editor":QColor(120,81,169, base_alpha),
@@ -1359,6 +1394,7 @@ class InteractiveGridCanvas(QWidget):
             "Embedded Stage View": QColor(30, 30, 33, 180 if is_selected else 130),
             "Embedded Timeline": QColor(60, 60, 65, 180 if is_selected else 130),
             "Clock Display": QColor(100, 100, 100, base_alpha + 20),
+            "Programmer View": QColor(40, 42, 54, 180 if is_selected else 130),
             "None":QColor(60,60,60,base_alpha-20)
         }
         col=color_map.get(area.function_type,QColor(70,70,70,base_alpha))
@@ -1397,7 +1433,7 @@ class InteractiveGridCanvas(QWidget):
             is_standard_child_widget = True
             widget_to_check = child_at_pos
             while widget_to_check:
-                if isinstance(widget_to_check, ClockWidget):
+                if isinstance(widget_to_check, (ClockWidget, ProgrammerViewWidget, CueListWidget)):
                     is_non_interactive_view_click = True
                     break
                 widget_to_check = widget_to_check.parentWidget()
@@ -1450,7 +1486,8 @@ class InteractiveGridCanvas(QWidget):
                 panel_selectable_types = ["None", "Color Palette", "Loop Palette", "Gradient Editor", "Group Selector",
                                           "Fixture Selector List", "Multi-Group Selector List", "Embedded Stage View",
                                           "Embedded Timeline", "Slider Control", "Fixture Control", "Preset Trigger",
-                                          "Toggle Fixture Power", "Flash Fixture", "Executor Fader", "Clock Display"] 
+                                          "Toggle Fixture Power", "Flash Fixture", "Executor Fader", "Clock Display", "Programmer View",
+                                          "Master Cue List"] 
                 
                 # Also include plugin widgets in selectable types
                 panel_selectable_types.extend(self.parent_tab.custom_layout_widgets.keys())
@@ -1563,6 +1600,8 @@ class InteractiveGridCanvas(QWidget):
             potential_func_type = self.parent_tab.function_type_combo.currentText()
             if potential_func_type == "Color Picker":
                  min_w_cells, min_h_cells = self.MIN_CELLS_WIDTH_COLORWHEEL, self.MIN_CELLS_HEIGHT_COLORWHEEL
+            elif potential_func_type == "Programmer View":
+                 min_w_cells, min_h_cells = self.MIN_CELLS_WIDTH_PROGRAMMER, self.MIN_CELLS_HEIGHT_PROGRAMMER
             elif potential_func_type == "Slider Control":
                  min_w_cells, min_h_cells = self.MIN_CELLS_WIDTH_SLIDER, self.MIN_CELLS_HEIGHT_SLIDER
             elif potential_func_type == "Loop Palette":
@@ -1674,42 +1713,12 @@ class InteractiveGridCanvas(QWidget):
             return
 
         menu = QMenu(self)
-
-        edit_loop_action = QAction(f"Edit Loop '{button_widget.toolTip().replace('Toggle Loop: ','')}'...", self)
-        edit_loop_action.triggered.connect(lambda: self._edit_loop_palette_from_area_button(loop_palette_db_id))
-        menu.addAction(edit_loop_action)
-
+        
         remove_from_area_action = QAction("Remove from this Area", self)
         remove_from_area_action.triggered.connect(lambda: self._remove_loop_from_area(target_area, loop_palette_db_id))
         menu.addAction(remove_from_area_action)
         
         menu.exec(global_pos)
-
-    def _edit_loop_palette_from_area_button(self, loop_palette_db_id: int):
-        try:
-            manage_dialog = LoopPaletteManagementDialog(self.main_window, self.parent_tab)
-            
-            list_widget = manage_dialog.palettes_list_widget
-            item_to_select = None
-            for i in range(list_widget.count()):
-                item = list_widget.item(i)
-                if item.data(Qt.ItemDataRole.UserRole) == loop_palette_db_id:
-                    item_to_select = item
-                    break
-            
-            if item_to_select:
-                list_widget.setCurrentItem(item_to_select)
-
-            if manage_dialog.exec():
-                 if self.main_window.loop_palettes_tab:
-                    pass
-                 self.parent_tab.refresh_dynamic_content()
-                 self.parent_tab.update_loop_palette_area_button_states()
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error Editing Loop", f"Could not edit loop palette: {e}")
-            print(f"Error editing loop palette from area button: {e}")
-
 
     def _remove_loop_from_area(self, target_area: DefinedArea, loop_palette_db_id_to_remove: int):
         if target_area.function_type == "Loop Palette":
@@ -2237,7 +2246,7 @@ class InteractiveGridCanvas(QWidget):
             self.viewOrContentChanged.emit()
 
     def update_area_widget(self, area_item: DefinedArea):
-        area_item.clear_embedded_widget()
+        area_item.clear_embedded_widget(self.main_window)
         
         padding = 4
         rect_on_canvas = area_item.rect.translated(int(-self.canvas_offset_x), int(-self.canvas_offset_y))
@@ -2247,14 +2256,12 @@ class InteractiveGridCanvas(QWidget):
         area_data = area_item.data
         label_text_from_area = area_item.display_text
         
-        types_needing_label_above = [
-            "Slider Control", "Master Intensity", "Embedded Stage View", "Embedded Timeline",
+        types_needing_label_above = [ 
+            "Programmer View", "Master Cue List", "Slider Control", "Master Intensity", "Embedded Stage View", "Embedded Timeline",
             "Color Picker", "Color Palette", "Loop Palette", "Gradient Editor",
             "Fixture Selector List", "Multi-Group Selector List", "Executor Fader"
-            # Clock Display now handles its own title as a QGroupBox
         ]
 
-        # Handle label creation for both built-in and plugin widgets
         if func_type in types_needing_label_above or func_type in self.parent_tab.custom_layout_widgets:
             area_item.label_widget = QLabel(label_text_from_area.split('\n')[0], self)
             area_item.label_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -2310,6 +2317,15 @@ class InteractiveGridCanvas(QWidget):
                 self._populate_multi_group_list_widget_for_area(widget, area_item)
                 widget.itemSelectionChanged.connect(lambda lw=widget: self._on_embedded_multi_group_list_selection_changed(lw))
             area_item.embedded_widget = widget
+        
+        elif func_type == "Master Cue List":
+            timeline_tab = self.main_window.timeline_tab
+            if timeline_tab:
+                widget = CueListWidget(self.main_window, timeline_tab, self)
+                widget.cue_selected.connect(timeline_tab.go_to_cue_by_number)
+                area_item.embedded_widget = widget
+            else:
+                area_item.set_function("None", {}, "Timeline Unavailable")
         
         elif func_type == "Color Palette":
             container_frame = QFrame(self)
@@ -2508,6 +2524,14 @@ class InteractiveGridCanvas(QWidget):
             widget.setConfig(show_24h, show_ms)
             area_item.embedded_widget = widget
             area_item.label_widget = None
+            
+        elif func_type == "Programmer View":
+            widget = ProgrammerViewWidget(self.main_window, area_item.id, self)
+            widget.parent_tab = self.parent_tab
+            self.parent_tab.global_fixture_selection_changed.connect(widget.update_view)
+            self.main_window.fixture_data_globally_changed.connect(widget.handle_single_fixture_update)
+            widget.update_view(self.parent_tab.globally_selected_fixture_ids_for_controls)
+            area_item.embedded_widget = widget
 
         else: # Check for custom plugin widgets
             if func_type in self.parent_tab.custom_layout_widgets:
@@ -2552,7 +2576,7 @@ class InteractiveGridCanvas(QWidget):
                 old_dual_state = current_area_obj.data.get('enable_dual_sliders',False)
                 
                 types_needing_label_above = [ 
-                    "Slider Control", "Master Intensity", "Embedded Stage View", "Embedded Timeline",
+                    "Programmer View", "Master Cue List", "Slider Control", "Master Intensity", "Embedded Stage View", "Embedded Timeline",
                     "Color Picker", "Color Palette", "Loop Palette", "Gradient Editor",
                     "Fixture Selector List", "Multi-Group Selector List", "Executor Fader"
                 ]
@@ -2651,6 +2675,8 @@ class InteractiveGridCanvas(QWidget):
         return False
 
     def get_widget_type_for_function(self,func_type_str):
+        if func_type_str == "Programmer View": return [ProgrammerViewWidget]
+        if func_type_str == "Master Cue List": return [CueListWidget]
         if func_type_str in ["Slider Control","Master Intensity", "Executor Fader"]:return[QSlider]
         if func_type_str=="Color Picker":return[CustomColorWheelWidget]
         if func_type_str=="Fixture Control": return [FixtureControlWidget]
@@ -2674,7 +2700,7 @@ class InteractiveGridCanvas(QWidget):
 
     def remove_area_and_widget(self,area_to_remove:DefinedArea):
         if QMessageBox.question(self,"Confirm Removal",f"Remove '{area_to_remove.display_text}'?",QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.No,QMessageBox.StandardButton.No)==QMessageBox.StandardButton.No:return
-        area_to_remove.clear_embedded_widget()
+        area_to_remove.clear_embedded_widget(self.main_window)
         self.defined_areas=[a for a in self.defined_areas if a.id!=area_to_remove.id]
         
         if area_to_remove in self.multi_selected_areas:
@@ -2702,7 +2728,7 @@ class InteractiveGridCanvas(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             areas_to_delete_copy = list(self.multi_selected_areas)
             for area in areas_to_delete_copy:
-                area.clear_embedded_widget()
+                area.clear_embedded_widget(self.main_window)
                 if area in self.defined_areas:
                     self.defined_areas.remove(area)
             
@@ -2744,7 +2770,7 @@ class InteractiveGridCanvas(QWidget):
 
     def load_areas_from_data(self,areas_data_list:list[dict]):
         for current_area_obj in self.defined_areas:
-            current_area_obj.clear_embedded_widget()
+            current_area_obj.clear_embedded_widget(self.main_window)
         self.defined_areas.clear()
         self.multi_selected_areas.clear()
 

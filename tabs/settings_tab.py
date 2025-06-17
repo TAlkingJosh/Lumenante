@@ -127,6 +127,10 @@ class SettingsTab(QWidget):
         import_roblox_pos_button.setToolTip("Requests current fixture positions from the running ROBLOX game and updates the patch.")
         import_roblox_pos_button.clicked.connect(self.handle_import_from_roblox)
         roblox_form_layout.addRow(import_roblox_pos_button)
+        
+        self.roblox_auto_patch_checkbox = QCheckBox("Auto-Patch New Fixtures Reported by Roblox")
+        self.roblox_auto_patch_checkbox.setToolTip("If a fixture is found in the Roblox game but not in the patch,\nautomatically add it using a default profile.")
+        roblox_form_layout.addRow(self.roblox_auto_patch_checkbox)
 
 
         roblox_group.setLayout(roblox_form_layout)
@@ -253,6 +257,7 @@ class SettingsTab(QWidget):
         self.always_on_top_checkbox.setChecked(always_on_top)
         
         self.roblox_live_mode_checkbox.setChecked(settings.value('roblox/live_mode_enabled', False, type=bool))
+        self.roblox_auto_patch_checkbox.setChecked(settings.value('roblox/auto_patch_enabled', True, type=bool))
 
         # Load Gamepad settings
         self.gamepad_enabled_checkbox.setChecked(settings.value('gamepad/enabled', True, type=bool))
@@ -278,6 +283,7 @@ class SettingsTab(QWidget):
 
         settings.setValue('window/always_on_top', self.always_on_top_checkbox.isChecked())
         settings.setValue('roblox/live_mode_enabled', self.roblox_live_mode_checkbox.isChecked())
+        settings.setValue('roblox/auto_patch_enabled', self.roblox_auto_patch_checkbox.isChecked())
 
         # Save Gamepad settings
         settings.setValue('gamepad/enabled', self.gamepad_enabled_checkbox.isChecked())

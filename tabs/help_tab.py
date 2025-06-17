@@ -58,7 +58,7 @@ This application is built around a workflow similar to professional lighting des
 Navigate through the sub-tabs above for more detailed help on each section.
 
 ---
-*Version: 1.0.Alpha*
+*Version: 1.1*
         """
         self.help_tab_widget.addTab(self._create_help_section(overview_text), "Overview")
 

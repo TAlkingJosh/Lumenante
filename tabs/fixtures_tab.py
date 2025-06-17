@@ -267,17 +267,26 @@ class FixtureEditFormWidget(QWidget):
         self.layout.addRow("Name:", self.name_edit)
         self.layout.addRow("Fixture Profile:", self.profile_combo)
         self.layout.addRow("Fixture ID (FID):", self.fid_edit)
-        self.layout.addRow("Sub-Fixture Index (SFI):", self.sfi_edit)
+        self.sfi_label = QLabel("Sub-Fixture Index (SFI):")
+        self.layout.addRow(self.sfi_label, self.sfi_edit)
         self.instance_count_label = QLabel("Number of Lens/Instances:")
         self.layout.addRow(self.instance_count_label, self.instance_count_edit)
-        self.layout.addRow("X Position:", self.x_pos_edit)
-        self.layout.addRow("Y Position:", self.y_pos_edit)
-        self.layout.addRow("Z Position:", self.z_pos_edit)
-        self.layout.addRow("X Rotation:", self.rot_x_edit)
-        self.layout.addRow("Y Rotation:", self.rot_y_edit)
-        self.layout.addRow("Z Rotation:", self.rot_z_edit)
-        self.layout.addRow("Default Zoom:", self.zoom_edit)
-        self.layout.addRow("Default Focus:", self.focus_edit)
+        self.x_pos_label = QLabel("X Position:")
+        self.layout.addRow(self.x_pos_label, self.x_pos_edit)
+        self.y_pos_label = QLabel("Y Position:")
+        self.layout.addRow(self.y_pos_label, self.y_pos_edit)
+        self.z_pos_label = QLabel("Z Position:")
+        self.layout.addRow(self.z_pos_label, self.z_pos_edit)
+        self.rot_x_label = QLabel("X Rotation:")
+        self.layout.addRow(self.rot_x_label, self.rot_x_edit)
+        self.rot_y_label = QLabel("Y Rotation:")
+        self.layout.addRow(self.rot_y_label, self.rot_y_edit)
+        self.rot_z_label = QLabel("Z Rotation:")
+        self.layout.addRow(self.rot_z_label, self.rot_z_edit)
+        self.zoom_label = QLabel("Default Zoom:")
+        self.layout.addRow(self.zoom_label, self.zoom_edit)
+        self.focus_label = QLabel("Default Focus:")
+        self.layout.addRow(self.focus_label, self.focus_edit)
 
     def populate_profiles(self):
         current_id = self.profile_combo.currentData()
@@ -302,22 +311,26 @@ class FixtureEditFormWidget(QWidget):
     def set_create_mode(self, is_create: bool):
         """Switches the form between Create and Edit mode."""
         self.fid_edit.setReadOnly(not is_create)
-        self.sfi_edit.setReadOnly(True) # SFI is only editable on creation via start index
+        self.sfi_edit.setReadOnly(not is_create)
         
         self.instance_count_edit.setVisible(is_create)
         self.instance_count_label.setVisible(is_create)
         self.sfi_edit.setToolTip("Starting Sub-Fixture Index." if is_create else "Sub-Fixture Index (read-only).")
         if is_create:
-            self.layout.labelForField(self.sfi_edit).setText("Starting SFI:")
+            self.sfi_label.setText("Starting SFI:")
         else:
-            self.layout.labelForField(self.sfi_edit).setText("Sub-Fixture Index (SFI):")
+            self.sfi_label.setText("Sub-Fixture Index (SFI):")
 
         # Hide position controls in create mode to simplify
         pos_widgets = [self.x_pos_edit, self.y_pos_edit, self.z_pos_edit,
-                       self.rot_x_edit, self.rot_y_edit, self.rot_z_edit]
-        for widget in pos_widgets:
-            widget.setVisible(not is_create)
-            self.layout.labelForField(widget).setVisible(not is_create)
+                       self.rot_x_edit, self.rot_y_edit, self.rot_z_edit,
+                       self.zoom_edit, self.focus_edit]
+        label_widgets = [self.x_pos_label, self.y_pos_label, self.z_pos_label,
+                         self.rot_x_label, self.rot_y_label, self.rot_z_label,
+                         self.zoom_label, self.focus_label]
+        for i in range(len(pos_widgets)):
+            pos_widgets[i].setVisible(not is_create)
+            label_widgets[i].setVisible(not is_create)
 
 
     def load_data(self, fixture_data: dict | None):
@@ -546,6 +559,9 @@ class FixturesTab(QWidget):
 
     def _save_changes(self):
         """Saves data from the form, either creating or updating a fixture."""
+        if not self.edit_form_widget.isEnabled():
+            return
+            
         fixture_data = self.edit_form_widget.get_data()
         if not fixture_data:
             return # Validation failed in get_data()
@@ -584,9 +600,12 @@ class FixturesTab(QWidget):
 
             else: # Update existing
                 fixture_id = fixture_data.pop('id')
-                set_clauses = [f"{col} = ?" for col in fixture_data.keys() if col not in ['fid', 'sfi']]
-                values = [fixture_data[col] for col in fixture_data.keys() if col not in ['fid', 'sfi']] + [fixture_id]
+                # In edit mode, FID and SFI are not changed
+                columns_to_update = [col for col in fixture_data.keys() if col not in ['id', 'fid', 'sfi', 'instance_count']]
+                set_clauses = [f"{col} = ?" for col in columns_to_update]
+                values = [fixture_data[col] for col in columns_to_update] + [fixture_id]
                 cursor.execute(f"UPDATE fixtures SET {', '.join(set_clauses)} WHERE id = ?", tuple(values))
+
                 self.fixture_updated.emit(fixture_id, fixture_data)
                 QMessageBox.information(self, "Success", f"Fixture '{fixture_data['name']}' updated.")
             

@@ -4,7 +4,6 @@
 ![Lumenante](https://github.com/user-attachments/assets/46f1a368-c7b6-4402-aca9-7435118701e8)
 
 
-*[Discord Server](https://discord.gg/SGxzA4esc4) for help, models, and more*
 
 **Lumenante** is a powerful lighting control application designed to emulate the workflow of professional lighting consoles. It provides a comprehensive toolset for designing, programming, and operating light shows, with a primary focus on live integration with the **Roblox** platform.
 
